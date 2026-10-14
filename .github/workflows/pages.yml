@@ -42,13 +42,15 @@ jobs:
           }
           NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           START2D=$(date -u -d '2 days ago' +%Y-%m-%dT%H:%M:%SZ)
-          START6H=$(date -u -d '6 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+          START24H=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
           HPO=https://isdc-data.gfz.de/geomagnetism/HpoForecast/v0102/output/Hpo/json
           get "$HPO/hpo_forecast_mean_bars_Kp.json"   _site/data/gfz_hpo_kp.json
           get "$HPO/hpo_forecast_mean_bars_Hp30.json" _site/data/gfz_hpo_hp30.json
+          get "$HPO/hpo_forecast_mean_bars_Hp60.json" _site/data/gfz_hpo_hp60.json
           get "https://spaceweather.gfz.de/fileadmin/Kp-Forecast/CSV/kp_product_file_FORECAST_PAGER_SWIFT_LAST.csv" _site/data/gfz_swift.csv
           get "https://kp.gfz.de/app/json/?start=${START2D}&end=${NOW}&index=Kp"   _site/data/gfz_kp.json
-          get "https://kp.gfz.de/app/json/?start=${START6H}&end=${NOW}&index=Hp30" _site/data/gfz_hp30.json
+          get "https://kp.gfz.de/app/json/?start=${START24H}&end=${NOW}&index=Hp30" _site/data/gfz_hp30.json
+          get "https://kp.gfz.de/app/json/?start=${START24H}&end=${NOW}&index=Hp60" _site/data/gfz_hp60.json
           printf '{"fetched":"%s"}\n' "$NOW" > _site/data/meta.json
           ls -la _site/data
 

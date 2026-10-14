@@ -86,6 +86,32 @@
 .explain div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
 .explain b { display: block; margin-bottom: 2px; }
 .explain p { margin: 0; font-size: .88rem; opacity: .9; max-width: 65ch; }
+
+/* Nordlicht-Kopf: Note, Zerlegung, Ausblick */
+.ahero .ahero-why { grid-column: 1 / -1; margin: 6px 0 0; opacity: .88; }
+.formula { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+.fchip { display: inline-flex; flex-direction: column; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 4px 9px; line-height: 1.2; }
+.fchip small { font: 500 .66rem var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.fchip b { font: 700 1rem var(--font-display); font-variant-numeric: tabular-nums; }
+.fchip.tr { margin-left: 4px; }
+.formula .op { color: var(--muted); font: 600 1rem var(--font-mono); }
+.outlook { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.ol { background: var(--surface-2); border-radius: 10px; padding: 7px 10px; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ol small { font: .7rem var(--font-mono); color: var(--muted); }
+.ol b { font: 700 1.25rem/1.1 var(--font-display); font-variant-numeric: tabular-nums; }
+.ol span { font-size: .78rem; color: var(--muted); }
+.legend i.sw-line { height: 3px; width: 14px; border-radius: 2px; vertical-align: 3px; }
+.legend i.dash { background: repeating-linear-gradient(90deg, var(--accent) 0 5px, transparent 5px 8px) !important; }
+.tile .arrow { font: 600 1.1rem var(--font-body); color: var(--fg); }
+.nlist { display: flex; flex-direction: column; gap: 8px; }
+.nrow { display: grid; grid-template-columns: 2.4rem minmax(0, 1fr) 5.5rem; gap: 10px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.nrow .ns { font: 700 1.8rem/1 var(--font-display); text-align: right; font-variant-numeric: tabular-nums; }
+.nrow .nt { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: .86rem; }
+.nrow .hstrip { width: 100%; height: 28px; display: block; }
+.hwrap { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hwrap small { font: .66rem var(--font-mono); color: var(--muted); text-align: center; }
+@media (max-width: 400px) { .nrow { grid-template-columns: 2.2rem minmax(0, 1fr); } .nrow .hwrap { grid-column: 2; } }
+.how summary { list-style-position: outside; }
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; background: var(--bg); color: var(--fg);
@@ -266,72 +292,70 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
   </div>
 
   <div class="view aurora" id="viewAurora" hidden>
-    <section class="hero" id="aHero" aria-live="polite">
-      <div class="night-label" id="aHeroLabel">Jetzt und in der nächsten Stunde</div>
+    <section class="hero ahero" id="aHero" aria-live="polite">
+      <div class="night-label" id="aHeroLabel">Jetzt bis in einer Stunde</div>
       <div class="score" id="aHeroScore">–<sub>/10</sub></div>
       <div class="hero-text">
         <div class="headline" id="aHeroHeadline">Lade Weltraumwetter …</div>
-        <p class="why" id="aHeroWhy">Sonnenwind, Kp-Index und Polarlicht-Oval werden abgefragt.</p>
+        <div class="formula" id="aFormula" aria-label="Zusammensetzung der Note"></div>
       </div>
+      <p class="why ahero-why" id="aHeroWhy">Sonnenwind, Kp, Hp30 und Polarlicht-Oval werden abgefragt.</p>
+      <div class="outlook" id="aOutlook"></div>
       <div class="pills" id="aHeroPills"></div>
     </section>
 
-    <section>
-      <h2>Sonnenwind am Satelliten</h2>
-      <p class="lead" id="swLead">Der Satellit misst den Sonnenwind etwa 1,5 Millionen km vor der Erde. Was er jetzt sieht, kommt in rund einer Stunde bei uns an.</p>
-      <div class="tiles" id="swTiles" style="margin-top:10px"></div>
+    <section class="chart-box">
+      <h2 style="margin:0">Aktivität stündlich</h2>
+      <p class="lead" id="chartLead">Letzte 12 Stunden gemessen, danach Vorhersage für 3 Tage.</p>
+      <div class="legend" id="kpLegend"></div>
+      <svg id="kpChart" role="img" aria-label="Geomagnetische Aktivität je Stunde: gemessen, GFZ-Vorhersage und NOAA zum Vergleich"></svg>
+      <div class="readout" id="kpReadout">Tippe ins Diagramm für die Werte einer Stunde.</div>
     </section>
 
-    <section class="gauge">
-      <h2 style="margin:0">Wie stark muss es hier sein?</h2>
-      <svg id="kpGauge" role="img" aria-label="Kp-Skala mit den Schwellen für diesen Ort"></svg>
-      <p class="lead" id="gaugeText"></p>
+    <section>
+      <h2>Trends der letzten 6 Stunden</h2>
+      <div class="tiles" id="trendTiles"></div>
+      <p class="lead" id="swLead" style="margin-top:8px"></p>
     </section>
 
     <section>
       <h2>Nächste Nächte</h2>
-      <div class="nights" id="aNights"></div>
-    </section>
-
-    <section class="chart-box">
-      <h2 style="margin:0">Kp-Vorhersage, 3 Tage</h2>
-      <div class="legend" id="kpLegend"></div>
-      <svg id="kpChart" role="img" aria-label="Kp-Index in 3-Stunden-Schritten mit Vorhersage von NOAA und GFZ"></svg>
-      <div class="readout" id="kpReadout">Tippe auf einen Balken für Details.</div>
+      <div class="nlist" id="aNights"></div>
     </section>
 
     <section>
       <h2>27-Tage-Tendenz</h2>
-      <p class="lead">Grobe Tendenz aus dem NOAA-Ausblick (größter Kp des Tages), mit Dunkelheit und Mond, aber <b>ohne Wetter</b>. Die Sonne dreht sich in rund 27 Tagen einmal; aktive Regionen kehren dann oft zurück.</p>
-      <div class="cal" id="cal27" style="margin-top:10px"></div>
-    </section>
-
-    <section>
-      <h2>Kurz erklärt</h2>
-      <div class="explain">
-        <div><b>Kp-Index (0–9)</b><p>Misst, wie stark das Erdmagnetfeld gerade gestört ist. Je höher, desto weiter nach Süden reicht das Nordlicht. Ab Kp 5 spricht man von einem geomagnetischen Sturm.</p></div>
-        <div><b>Bz (Nord-Süd-Richtung des Magnetfelds im Sonnenwind)</b><p>Der wichtigste Einzelwert für die nächste Stunde. Zeigt Bz nach Süden (negativ), verbindet sich das Feld mit dem der Erde und Energie strömt ein. Bleibt es länger als 15–30 Minuten deutlich negativ, wird Nordlicht wahrscheinlich.</p></div>
-        <div><b>Geschwindigkeit und Dichte</b><p>Schneller und dichter Sonnenwind verstärkt die Wirkung. Ruhig sind etwa 350–400 km/s; über 500 km/s wird es interessant.</p></div>
-        <div><b>Polarlicht-Oval</b><p>Ein Ring um den magnetischen Pol, in dem Nordlicht auftritt. Bei Aktivität dehnt er sich nach Süden aus. Liegt er nördlich von dir, siehst du Nordlicht tief am Nordhorizont.</p></div>
-      </div>
-    </section>
-
-    <section>
-      <h2>Datenquellen</h2>
-      <div class="src" id="aSrc"></div>
+      <p class="lead">Nur Aktivität, Dunkelheit und Mond, <b>ohne Wetter</b>. Gerechnet mit einer Kp-Stufe unter dem Tagesmaximum aus dem NOAA-Ausblick.</p>
+      <div class="cal" id="cal27" style="margin-top:8px"></div>
     </section>
 
     <details class="how">
+      <summary>Kurz erklärt: Kp, Hp30, Bz, Oval</summary>
+      <div class="explain" style="margin-top:10px">
+        <div><b>Kp-Index (0–9)</b><p>Misst, wie stark das Erdmagnetfeld gestört ist, in 3-Stunden-Schritten. Je höher, desto weiter nach Süden reicht das Nordlicht. Ab Kp 5 spricht man von einem geomagnetischen Sturm.</p></div>
+        <div><b>Hp30 und Hp60 (GFZ)</b><p>Dasselbe wie Kp, aber für jede halbe bzw. ganze Stunde. Sie zeigen kurze Ausbrüche, die im 3-Stunden-Kp untergehen, und können über 9 steigen.</p></div>
+        <div><b>Bz</b><p>Die Nord-Süd-Richtung des Magnetfelds im Sonnenwind. Zeigt es nach Süden (negativ), strömt Energie in das Erdmagnetfeld. Bleibt Bz 15–30 Minuten deutlich negativ, wird Nordlicht wahrscheinlich.</p></div>
+        <div><b>Geschwindigkeit und Dichte</b><p>Schneller und dichter Sonnenwind verstärkt die Wirkung. Ruhig sind etwa 350–400 km/s, über 500 km/s wird es interessant.</p></div>
+        <div><b>Polarlicht-Oval</b><p>Ein Ring um den magnetischen Pol, in dem Nordlicht auftritt. Bei Aktivität dehnt er sich nach Süden aus. Liegt er nördlich von dir, siehst du Nordlicht tief am Nordhorizont.</p></div>
+      </div>
+    </details>
+
+    <details class="how">
+      <summary>Datenquellen</summary>
+      <div class="src" id="aSrc" style="margin-top:10px"></div>
+    </details>
+
+    <details class="how">
       <summary>So wird die Nordlicht-Note berechnet</summary>
-      <p>Die Note ist <code>1 + 9 × Aktivität × Himmel</code>, gerundet. Beide Teile liegen zwischen 0 und 1.</p>
+      <p>Note = <code>1 + 9 × Aktivität × Himmel</code>, gerundet. Beide Teile liegen zwischen 0 und 1 und werden auch einzeln als Note gezeigt.</p>
       <ul>
-        <li><b>Aktivität:</b> Aus dem Kp-Wert und der magnetischen Breite des Orts. Nach der NOAA-Faustregel liegt der Südrand des Ovals bei Kp 0 auf 66,5° magnetischer Breite und rückt je Kp-Stufe rund 2° nach Süden. Daraus ergeben sich zwei Schwellen: „tief am Nordhorizont“ und „über dir“.</li>
-        <li><b>Jetzt:</b> Mittel aus drei Kp-Schätzungen: NOAA (aktueller Kp, minütlich), GFZ-Hp30-Vorhersage für die nächste Stunde (halbstündlicher Index auf der Kp-Skala) und ein Wert, der grob aus Bz und Geschwindigkeit der letzten 30 Minuten geschätzt wird. Dazu kommt die NOAA-OVATION-Vorhersage des Ovals für deinen Ort.</li>
-        <li><b>Nächste Nächte:</b> Kp-Vorhersage von NOAA und GFZ, gemittelt, je 3 Stunden. GFZ kommt aus dem stündlich aktualisierten Hpo-Modell (Median; die Linie im Diagramm reicht bis zum Maximum). Ist es nicht verfügbar, springt das ältere SWIFT-Ensemble ein, sofern es aktuell ist. Die Nachtnote ist das Mittel der besten zwei aufeinanderfolgenden Stunden.</li>
-        <li><b>Himmel:</b> Dunkelheit (ab Sonne unter −12° voll, in der nautischen Dämmerung teilweise), Bewölkung aus den Wettermodellen der Astrofoto-Ansicht und Mond (höchstens 25 % Abzug, helles Nordlicht setzt sich gegen den Mond durch).</li>
-        <li><b>27 Tage:</b> nur Aktivität × Dunkelheit × Mond, Wetter ist so weit im Voraus nicht vorhersagbar.</li>
+        <li><b>Aktivität jetzt bis +1 h:</b> gewichtetes Mittel aus GFZ-Hp30-Vorhersage (35 %), Sonnenwind am Satelliten (25 %, Faustformel aus Bz und Geschwindigkeit), NOAA-Kp jetzt (20 %) und dem zuletzt gemessenen Hp30 (20 %). Fehlt eine Quelle, verteilen sich die Gewichte auf die übrigen. Dieser Wert wird mit der magnetischen Breite des Orts verglichen und zu 60 % mit der NOAA-OVATION-Vorhersage für deinen Ort zu 40 % kombiniert.</li>
+        <li><b>Schwellen:</b> Nach der NOAA-Faustregel liegt der Südrand des Ovals bei Kp 0 auf 66,5° magnetischer Breite und rückt je Stufe etwa 2° nach Süden. Daraus folgen die Linien „Horizont“ und „über dir“.</li>
+        <li><b>Himmel:</b> Dunkelheit (voll ab Sonne unter −12°, teilweise in der nautischen Dämmerung), Bewölkung aus den Wettermodellen der Astrofoto-Ansicht und Mond (höchstens 25 % Abzug).</li>
+        <li><b>Stunden und Nächte:</b> Je Stunde GFZ-Hp60-Vorhersage (Median, auf 9 gekappt) zu 60 % und NOAA-Kp zu 40 %. Die Nachtnote ist das Mittel der besten zwei aufeinanderfolgenden Stunden.</li>
+        <li><b>Trend:</b> Mittel der nächsten 3 Stunden (Vorhersage) gegen die letzten 3 Stunden (gemessen). Ab ±0,5 Kp-Stufen steigt oder fällt es.</li>
       </ul>
-      <p>Grenzen: Nordlicht kommt in Schüben und ist schwer auf die Stunde genau vorherzusagen. Die magnetische Breite ist eine Näherung. Der aus Bz geschätzte Kp-Wert ist eine Faustformel. Die 27-Tage-Tendenz trifft oft nicht ein.</p>
+      <p>Grenzen: Nordlicht kommt in Schüben. Die magnetische Breite ist eine Näherung, der Kp-Wert aus dem Sonnenwind eine Faustformel. Die 27-Tage-Tendenz trifft oft nicht ein.</p>
     </details>
   </div>
 
@@ -590,13 +614,19 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
 
   /* ---------- Nordlicht ---------- */
   const N = window.AuroraCore;
-  const aur = { raw: null, loading: false, lastLoad: 0, slot: null, model: null };
+  const aur = { raw: null, loading: false, lastLoad: 0, model: null };
   const SVGNS = "http://www.w3.org/2000/svg";
+  const HOUR = 3600000;
   function svgEl(tag, attrs, style) {
     const n = document.createElementNS(SVGNS, tag);
     if (attrs) for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
     if (style) n.setAttribute("style", style);
     return n;
+  }
+  function svgText(x, y, txt, style, anchor) {
+    const t = svgEl("text", { x, y, "text-anchor": anchor || "start" }, style);
+    t.textContent = txt;
+    return t;
   }
   const settle = p => p.then(v => ({ ok: true, v }), e => ({ ok: false, e }));
   async function getText(url) { const r = await fetch(url); if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); }
@@ -605,6 +635,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
   function hhmm(ms) { const d = local(ms); return String(d.getUTCHours()).padStart(2, "0") + ":" + String(d.getUTCMinutes()).padStart(2, "0"); }
   function dayName(ms) { const d = local(ms); return d.toLocaleDateString("de-DE", { weekday: "short", day: "numeric", month: "numeric", timeZone: "UTC" }); }
   const kpTxt = k => k === null || k === undefined ? "–" : fmtNum(k, 1);
+  const ARROW = { steigt: "↗", fällt: "↘", stabil: "→", unbekannt: "·" };
 
   async function loadAurora(force) {
     if (aur.loading) return;
@@ -613,19 +644,18 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     if (!aur.raw) { $("aHeroHeadline").textContent = "Lade Weltraumwetter …"; $("aHero").classList.add("loading"); }
     const now = Date.now();
     const iso = ms => new Date(ms).toISOString().slice(0, 19) + "Z";
-    const U = N.URLS;
-    const from = iso(now - 2 * 86400000), to = iso(now);
+    const U = N.URLS, L = U.local;
+    const from2d = iso(now - 2 * 86400000), from24 = iso(now - 86400000), to = iso(now);
     // GFZ: erst die Kopie neben der Seite, dann direkt beim GFZ (falls der Server das irgendwann erlaubt)
     const bust = "?t=" + Math.floor(now / 300000);
     const both = (localUrl, remoteUrl, fn) => fn(localUrl + bust).catch(() => fn(remoteUrl));
-    const L = U.local;
-    const [kpF, kpN, o27, ov, mag, wind, hpoKp, hpoHp30, swift, gfzK, gfzH, meta] = await Promise.all([
+    const [kpF, kpN, o27, ov, mag, wind, hpoKp, hpoHp30, hpoHp60, swift, gfzK, gfzH30, gfzH60, meta] = await Promise.all([
       settle(getJSON(U.kpForecast)), settle(getJSON(U.kpNow)), settle(getText(U.outlook27)),
       settle(getJSON(U.ovation)), settle(getJSON(U.mag)), settle(getJSON(U.wind)),
       settle(both(L.gfzHpoKp, U.gfzHpoKp, getJSON)), settle(both(L.gfzHpoHp30, U.gfzHpoHp30, getJSON)),
-      settle(both(L.gfzForecast, U.gfzForecast, getText)),
-      settle(both(L.gfzKp, U.gfzKp(from, to), getJSON)), settle(both(L.gfzHp30, U.gfzHp30(iso(now - 6 * 3600000), to), getJSON)),
-      settle(getJSON(L.meta + bust))
+      settle(both(L.gfzHpoHp60, U.gfzHpoHp60, getJSON)), settle(both(L.gfzForecast, U.gfzForecast, getText)),
+      settle(both(L.gfzKp, U.gfzKp(from2d, to), getJSON)), settle(both(L.gfzHp30, U.gfzHp30(from24, to), getJSON)),
+      settle(both(L.gfzHp60, U.gfzHp60(from24, to), getJSON)), settle(getJSON(L.meta + bust))
     ]);
     const safe = (r, fn) => { if (!r.ok) return null; try { return fn(r.v); } catch (e) { return null; } };
     const R = {
@@ -637,31 +667,41 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       wind: safe(wind, N.parseWind) || [],
       hpoKp: safe(hpoKp, N.parseHpo) || [],
       hpoHp30: safe(hpoHp30, N.parseHpo) || [],
+      hpoHp60: safe(hpoHp60, N.parseHpo) || [],
       swift: safe(swift, N.parseGfzCsv) || [],
       gfzK: safe(gfzK, N.parseGfzKp) || [],
-      gfzH: safe(gfzH, N.parseGfzHp30) || []
+      hp30m: safe(gfzH30, N.parseGfzHp30) || [],
+      hp60m: safe(gfzH60, N.parseGfzHp60) || []
     };
-    // GFZ-Kp-Vorhersage: bevorzugt das stündlich aktualisierte Hpo-Modell, sonst das SWIFT-Ensemble, wenn es frisch ist
-    const hpoFresh = N.isFresh(R.hpoKp, now, 3 * 3600000), swiftFresh = N.isFresh(R.swift, now, 3 * 3600000);
-    R.gfzF = hpoFresh ? R.hpoKp : (swiftFresh ? R.swift : []);
-    R.gfzFresh = hpoFresh || swiftFresh;
-    R.gfzSrc = hpoFresh ? "Hpo-Modell" : (swiftFresh ? "SWIFT-Ensemble" : null);
-    R.hp30Fresh = N.isFresh(R.hpoHp30, now, 1800000);
-    const lastH = R.gfzH.length ? R.gfzH[R.gfzH.length - 1] : null;
-    R.hp30Now = lastH && now - lastH.ms < 3 * 3600000 ? lastH : null;
     R.gfzFetched = meta.ok && meta.v && meta.v.fetched ? N.toMs(meta.v.fetched) : null;
-    const stale = (arr, fresh) => arr.length && !fresh ? "veraltet, nicht genutzt" : null;
+    const fresh = {
+      kp: N.isFresh(R.hpoKp, now, 3 * HOUR),
+      hp30: N.isFresh(R.hpoHp30, now, HOUR / 2),
+      hp60: N.isFresh(R.hpoHp60, now, HOUR),
+      swift: N.isFresh(R.swift, now, 3 * HOUR)
+    };
+    R.fresh = fresh;
+    // Für die Zeitreihe nur frische Vorhersagen verwenden; ohne Hpo-Kp springt das SWIFT-Ensemble ein
+    R.tl = {
+      hp60m: R.hp60m, hp30m: R.hp30m, gfzK: R.gfzK, kpF: R.kpF,
+      hp60f: fresh.hp60 ? R.hpoHp60 : [],
+      hpoKp: fresh.kp ? R.hpoKp : (fresh.swift ? R.swift : [])
+    };
+    const lastH = R.hp30m.length ? R.hp30m[R.hp30m.length - 1] : null;
+    R.hp30Now = lastH && now - lastH.ms < 3 * HOUR ? lastH : null;
+    const stale = (arr, ok) => arr.length && !ok ? "veraltet, nicht genutzt" : null;
     R.status = [
-      { label: "NOAA Kp-Vorhersage", note: "3 Tage", ok: R.kpF.length > 0 },
+      { label: "GFZ Hp60-Vorhersage", note: stale(R.hpoHp60, fresh.hp60) || "stündlich, 3 Tage", ok: fresh.hp60 },
+      { label: "GFZ Hp30-Vorhersage", note: stale(R.hpoHp30, fresh.hp30) || "halbstündlich, 3 Tage", ok: fresh.hp30 },
+      { label: "GFZ Kp-Vorhersage", note: stale(R.hpoKp, fresh.kp) || "Hpo-Modell, 3 h", ok: fresh.kp },
+      { label: "GFZ Hp30/Hp60 gemessen", note: "letzte 24 h", ok: R.hp30m.length > 0 || R.hp60m.length > 0 },
+      { label: "GFZ Kp gemessen", note: "letzte 2 Tage", ok: R.gfzK.length > 0 },
+      { label: "GFZ SWIFT-Ensemble", note: stale(R.swift, fresh.swift) || (fresh.kp ? "Reserve" : "genutzt"), ok: fresh.swift },
+      { label: "NOAA Kp-Vorhersage", note: "3 Tage, Vergleich", ok: R.kpF.length > 0 },
       { label: "NOAA Kp jetzt", note: "Schätzung je Minute", ok: !!R.kpNow },
       { label: "NOAA OVATION", note: "Oval, 30–90 min", ok: !!R.ovJson },
       { label: "NOAA 27 Tage", note: "Ausblick", ok: R.o27.length > 0 },
-      { label: "Sonnenwind L1", note: R.mag.length && R.mag[R.mag.length - 1].source ? R.mag[R.mag.length - 1].source : "Satellit", ok: R.mag.length > 0 && R.wind.length > 0 },
-      { label: "GFZ Kp-Vorhersage", note: stale(R.hpoKp, hpoFresh) || "Hpo-Modell, stündlich", ok: hpoFresh },
-      { label: "GFZ Hp30-Vorhersage", note: stale(R.hpoHp30, R.hp30Fresh) || "30 min, 3 Tage", ok: R.hp30Fresh },
-      { label: "GFZ Hp30 gemessen", note: R.hp30Now ? "halbstündlich" : "keine aktuellen Werte", ok: !!R.hp30Now },
-      { label: "GFZ Kp gemessen", note: "letzte 2 Tage", ok: R.gfzK.length > 0 },
-      { label: "GFZ SWIFT-Ensemble", note: stale(R.swift, swiftFresh) || (hpoFresh ? "Reserve" : "genutzt"), ok: swiftFresh }
+      { label: "Sonnenwind L1", note: R.mag.length && R.mag[R.mag.length - 1].source ? R.mag[R.mag.length - 1].source : "Satellit", ok: R.mag.length > 0 && R.wind.length > 0 }
     ];
     aur.raw = R;
     aur.lastLoad = Date.now();
@@ -669,6 +709,23 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     $("aHero").classList.remove("loading");
     renderAurora();
     renderUpdated();
+  }
+
+  /* Wetter je Stunde aus der Astrofoto-Berechnung */
+  function weatherAt(ms) {
+    const hrs = state.hoursAll || [];
+    let best = null;
+    for (const h of hrs) if (Math.abs(h.ms - ms) <= 30 * 60000 && (!best || Math.abs(h.ms - ms) < Math.abs(best.ms - ms))) best = h;
+    return best;
+  }
+  function skyAt(ms) {
+    const { lat, lon } = state.loc;
+    const w = weatherAt(ms);
+    const sun = w ? w.sun : A.sunAltitude(ms, lat, lon);
+    const moonAlt = w ? w.moonAlt : A.moonAltitude(ms, lat, lon);
+    const illum = w ? w.illum : A.moonIllumination(ms);
+    const cloud = w ? w.cloud : null;
+    return { ...N.skyFactor(sun, cloud, moonAlt, illum), sun, cloud, moonAlt, illum };
   }
 
   function auroraModel() {
@@ -679,63 +736,92 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     const mlat = N.magLat(lat, lon), need = N.kpNeeded(mlat);
     const sw = N.solarWindSummary(R.mag, R.wind, now);
     const ov = R.ovJson ? N.ovationAt(R.ovJson, lat, lon) : null;
-    const slotNow = R.kpF.find(x => now >= x.ms && now < x.ms + 3 * 3600000);
+
+    // Zeitreihe: gemessen + Vorhersage, stündlich
+    const tl = N.activityTimeline(R.tl, now, 12, 72);
+    tl.forEach(h => {
+      h.act = N.activityFromKp(h.kp, need);
+      const sky = skyAt(h.ms + HOUR / 2);
+      h.sky = sky;
+      h.hasWeather = sky.cloud !== null;
+      h.q = h.act === null ? null : h.act * sky.q;
+      h.score = h.q === null ? null : N.score(h.q);
+    });
+
+    // Jetzt bis +1 h: gewichtetes Mittel der Quellen
+    const slotNow = R.kpF.find(x => now >= x.ms && now < x.ms + 3 * HOUR);
     const kpNow = R.kpNow ? R.kpNow.kp : (slotNow ? slotNow.kp : null);
     const kpSw = sw && sw.dataAgeMin < 60 ? sw.kpSw : null;
-    // GFZ-Hp30-Vorhersage für die nächste Stunde (Hp30 ist auf der Kp-Skala, kann aber über 9 gehen)
-    const hp30Next = R.hp30Fresh ? R.hpoHp30.filter(r => r.ms + 1800000 > now && r.ms < now + 3600000).map(r => Math.min(9, r.median)) : [];
+    const hp30Next = R.fresh.hp30 ? R.hpoHp30.filter(r => r.ms + HOUR / 2 > now && r.ms < now + HOUR).map(r => Math.min(9, r.median)) : [];
     const hp30F = hp30Next.length ? hp30Next.reduce((a, b) => a + b, 0) / hp30Next.length : null;
-    const shortVals = [kpNow, kpSw, hp30F].filter(v => v !== null && v !== undefined);
-    const kpShort = shortVals.length ? shortVals.reduce((a, b) => a + b, 0) / shortVals.length : null;
+    const hp30M = R.hp30Now && now - R.hp30Now.ms < 90 * 60000 ? Math.min(9, R.hp30Now.kp) : null;
+    const parts = [
+      { key: "GFZ Hp30-Vorhersage", v: hp30F, w: 0.35 },
+      { key: "Sonnenwind", v: kpSw, w: 0.25 },
+      { key: "NOAA Kp jetzt", v: kpNow, w: 0.2 },
+      { key: "GFZ Hp30 gemessen", v: hp30M, w: 0.2 }
+    ].filter(p => p.v !== null && p.v !== undefined);
+    const sw0 = parts.reduce((a, p) => a + p.w, 0);
+    const kpShort = sw0 ? parts.reduce((a, p) => a + p.v * p.w, 0) / sw0 : null;
     const actKp = N.activityFromKp(kpShort, need);
     const actOv = ov ? Math.min(1, ov.value / 40) : null;
-    const actNow = actKp !== null && actOv !== null ? 0.5 * actKp + 0.5 * actOv : (actKp ?? actOv ?? 0);
-
-    const hrsW = state.hoursAll || [];
-    const near = hrsW.reduce((b, h) => (Math.abs(h.ms - now) < 5400000 && (!b || Math.abs(h.ms - now) < Math.abs(b.ms - now)) ? h : b), null);
+    const actNow = actKp !== null && actOv !== null ? 0.6 * actKp + 0.4 * actOv : (actKp ?? actOv ?? 0);
+    const skyA = skyAt(now), skyB = skyAt(now + HOUR);
+    const skyNow = { q: (skyA.q + skyB.q) / 2, dark: (skyA.dark + skyB.dark) / 2, cloud: skyA.cloud !== null && skyB.cloud !== null ? (skyA.cloud + skyB.cloud) / 2 : (skyA.cloud ?? skyB.cloud) };
     const sunNow = A.sunAltitude(now, lat, lon), moonNow = A.moonAltitude(now, lat, lon), illNow = A.moonIllumination(now);
-    const cloudNow = near ? near.cloud : null;
-    const skyNow = N.skyFactor(sunNow, cloudNow, moonNow, illNow);
 
-    // Stunden mit Wetter und Kp-Vorhersage
-    const hours = hrsW.filter(h => h.ms + 3600000 > now).map(h => {
-      const k = N.kpAt(h.ms, R.kpF, R.gfzF, R.gfzFresh);
-      const act = N.activityFromKp(k.kp, need);
-      if (act === null) return null;
-      const sky = N.skyFactor(h.sun, h.cloud, h.moonAlt, h.illum);
-      return { ms: h.ms, sun: h.sun, cloud: h.cloud, illum: h.illum, moonUp: h.moonUp, kp: k.kp, kpNoaa: k.noaa, kpGfz: k.gfz, act, sky, q: act * sky.q };
+    // Trend: nächste 3 h (Vorhersage) gegen letzte 3 h (gemessen)
+    const cur = Math.floor(now / HOUR) * HOUR;
+    const avgKp = arr => { const v = arr.map(h => h.kp).filter(x => x !== null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+    const lastPast = avgKp(tl.filter(h => h.past && h.ms >= cur - 3 * HOUR));
+    const nextFut = avgKp(tl.filter(h => !h.past && h.ms >= cur && h.ms < cur + 3 * HOUR));
+    let trend = "unbekannt", trendDelta = null;
+    if (lastPast !== null && nextFut !== null) {
+      trendDelta = nextFut - lastPast;
+      trend = trendDelta > 0.5 ? "steigt" : trendDelta < -0.5 ? "fällt" : "stabil";
+    }
+
+    // Ausblick in 3 h und 6 h
+    const outlook = [3, 6].map(dh => {
+      const h = tl.find(x => x.ms === cur + dh * HOUR);
+      return h ? { dh, ms: h.ms, score: h.score, kp: h.kp, cloud: h.sky.cloud, dark: h.sky.dark } : null;
     }).filter(Boolean);
-    const nights = A.groupNights(hours, off()).map(n => {
+
+    // Nächte (Zukunft, stündlich)
+    const fut = tl.filter(h => h.ms + HOUR > now && h.q !== null && h.hasWeather).map(h => ({ ...h, sun: h.sky.sun }));
+    const nights = A.groupNights(fut, off()).map(n => {
       const hs = n.hours;
       let best = -1, bi = 0;
-      const L = Math.min(2, hs.length);
-      for (let i = 0; i + L <= hs.length; i++) {
-        const m = hs.slice(i, i + L).reduce((a, h) => a + h.q, 0) / L;
+      const L2 = Math.min(2, hs.length);
+      for (let i = 0; i + L2 <= hs.length; i++) {
+        const m = hs.slice(i, i + L2).reduce((a, h) => a + h.q, 0) / L2;
         if (m > best) { best = m; bi = i; }
       }
-      const block = hs.slice(bi, bi + L);
+      const block = hs.slice(bi, bi + L2);
       const kpMax = Math.max(...hs.map(h => h.kp));
       return { dateKey: n.dateKey, hours: hs, score: N.score(best), best: block[0], kpMax, text: nightText(block, kpMax, need) };
     });
 
-    // 27 Tage (ab heute)
+    // 27 Tage
     const today = Date.UTC(local(now).getUTCFullYear(), local(now).getUTCMonth(), local(now).getUTCDate());
     const days = R.o27.filter(d => d.dateMs >= today).map(d => {
       let darkH = 0, twiH = 0;
       for (let h = 18; h <= 30; h++) {
-        const ms = d.dateMs + h * 3600000 - off() * 1000;
-        const s = A.sunAltitude(ms, lat, lon);
+        const s = A.sunAltitude(d.dateMs + h * HOUR - off() * 1000, lat, lon);
         if (s <= -12) darkH++; else if (s <= -6) twiH++;
       }
       const dark = darkH >= 2 ? 1 : (darkH + twiH >= 1 ? 0.5 : 0);
-      const mid = d.dateMs + 24 * 3600000 - off() * 1000;
+      const mid = d.dateMs + 24 * HOUR - off() * 1000;
       const moonF = A.moonAltitude(mid, lat, lon) > 0 ? 1 - 0.25 * A.moonIllumination(mid) : 1;
-      // vorsichtig: eine Kp-Stufe unter dem Tagesmaximum als typischer Nachtwert
       const act = N.activityFromKp(Math.max(0, d.kpMax - 1), need);
       return { ...d, dark, act, score: N.score(act * dark * moonF), illum: A.moonIllumination(mid) };
     });
 
-    return { now, mlat, need, sw, ov, kpNow, kpSw, hp30F, hp30Now: R.hp30Now, kpShort, actKp, actOv, actNow, sunNow, moonNow, illNow, cloudNow, skyNow, nowScore: N.score(actNow * skyNow.q), actScore: N.score(actNow), hours, nights, days };
+    return {
+      now, mlat, need, sw, ov, kpNow, kpSw, hp30F, hp30M, parts, kpShort, actKp, actOv, actNow,
+      skyNow, sunNow, moonNow, illNow, trend, trendDelta, outlook, tl, nights, days,
+      nowScore: N.score(actNow * skyNow.q), actScore: N.score(actNow), skyScore: N.score(skyNow.q)
+    };
   }
 
   function reach(kp, need) {
@@ -749,14 +835,13 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     const b = block[0];
     if (!b) return "";
     const avgOf = f => block.reduce((a, h) => a + f(h), 0) / block.length;
-    const cl = avgOf(h => h.cloud ?? 0), kpB = avgOf(h => h.kp);
+    const cl = avgOf(h => h.sky.cloud ?? 0), kpB = avgOf(h => h.kp);
     const parts = [`Kp bis ${kpTxt(kpMax)}: ${reach(kpMax, need)}.`];
-    // größte Einschränkung zur besten Zeit benennen
     const lim = [
       ["act", avgOf(h => h.act), `Zur besten Zeit nur Kp ${kpTxt(kpB)}.`],
-      ["cloud", avgOf(h => h.sky.cloud), `Bewölkung um ${Math.round(cl)} %.`],
+      ["cloud", avgOf(h => h.sky.cloud === null ? 1 : Math.pow(1 - h.sky.cloud / 100, 1.2)), `Bewölkung um ${Math.round(cl)} %.`],
       ["dark", avgOf(h => h.sky.dark), "Zur besten Zeit nur Dämmerung."],
-      ["moon", avgOf(h => h.sky.moon), `Heller Mond (${Math.round(b.illum * 100)} %).`]
+      ["moon", avgOf(h => h.sky.moon), `Heller Mond (${Math.round(b.sky.illum * 100)} %).`]
     ].sort((p, q) => p[1] - q[1])[0];
     const named = lim[1] < 0.75;
     if (named) parts.push(lim[2]);
@@ -768,230 +853,222 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     if (!aur.raw) return;
     const M = auroraModel();
     aur.model = M;
-    renderAuroraHero(M); renderSolarWind(M); renderGauge(M); renderAuroraNights(M); renderKpChart(M); render27(M); renderAuroraSources();
+    renderAuroraHero(M); renderMainChart(M); renderTrends(M); renderAuroraNights(M); render27(M); renderAuroraSources();
   }
 
+  function scoreChip(label, s) {
+    return el("span", { class: "fchip" }, [el("small", { text: label }), el("b", { class: "c" + s, text: s + "/10" })]);
+  }
   function renderAuroraHero(M) {
     const s = M.nowScore;
     const sc = $("aHeroScore");
     sc.className = "score c" + s;
     sc.replaceChildren(String(s), el("sub", { text: "/10" }));
-    const until = M.sw && M.sw.travelMin ? ` (bis ca. ${hhmm(M.now + M.sw.travelMin * 60000)} Uhr)` : "";
-    $("aHeroLabel").textContent = "Jetzt und in der nächsten Stunde" + until;
+    $("aHeroLabel").textContent = `Jetzt bis ${hhmm(M.now + HOUR)} Uhr`;
     let head;
-    if (M.skyNow.dark === 0) head = `Noch zu hell. Aktivität gerade ${M.actScore}/10`;
-    else if (M.cloudNow !== null && M.cloudNow >= 85) head = `Bedeckt. Aktivität gerade ${M.actScore}/10`;
+    if (M.skyNow.dark === 0) head = "Noch zu hell";
+    else if (M.skyNow.cloud !== null && M.skyNow.cloud >= 85) head = "Bedeckt";
     else if (s >= 7) head = "Gute Chance: raus und nach Norden schauen";
-    else if (s >= 4) head = "Möglich: tief im Norden, die Kamera sieht mehr als das Auge";
+    else if (s >= 4) head = "Möglich, tief im Norden. Die Kamera sieht mehr als das Auge";
     else head = "Gerade wenig wahrscheinlich";
     $("aHeroHeadline").textContent = head;
 
+    $("aFormula").replaceChildren(
+      scoreChip("Aktivität", M.actScore), el("span", { class: "op", text: "×" }),
+      scoreChip("Himmel", M.skyScore),
+      el("span", { class: "fchip tr" }, [el("small", { text: "Trend" }), el("b", { text: `${ARROW[M.trend]} ${M.trend}` })])
+    );
+
     const why = [];
-    if (M.sw && M.sw.bz30 !== null) {
-      why.push(`Sonnenwind: Bz ${fmtNum(M.sw.bz30, 1)} nT (${N.bzWords(M.sw.bz30)}), ${fmtNum(M.sw.v30 ?? M.sw.speed)} km/s (${N.speedWords(M.sw.v30 ?? M.sw.speed)}), Tendenz ${M.sw.trend}.`);
-    } else why.push("Keine aktuellen Sonnenwind-Daten.");
-    const bits = [];
     if (M.kpShort !== null) {
-      const src = [M.kpNow !== null ? `NOAA ${kpTxt(M.kpNow)}` : null, M.hp30F !== null ? `GFZ Hp30 ${kpTxt(M.hp30F)}` : null, M.kpSw !== null ? `Sonnenwind ${kpTxt(M.kpSw)}` : null].filter(Boolean);
-      bits.push(`Kp-Schätzung ${kpTxt(M.kpShort)} (${src.join(", ")}): ${reach(M.kpShort, M.need)}`);
-    }
-    if (M.ov) bits.push(`Oval-Vorhersage für deinen Ort ${Math.round(M.ov.value)} %`);
-    if (bits.length) why.push(bits.join("; ") + ".");
-    const sky = M.skyNow.dark === 0 ? "Sonne noch zu hoch" : (M.cloudNow === null ? "Bewölkung unbekannt" : `${Math.round(M.cloudNow)} % Wolken`);
-    why.push(`Himmel: ${sky}.`);
+      const src = M.parts.map(p => `${p.key} ${kpTxt(p.v)}`).join(", ");
+      why.push(`Aktivität: Kp etwa ${kpTxt(M.kpShort)} (${src}), ${reach(M.kpShort, M.need).toLowerCase().replace(/^nordlicht/, "Nordlicht")}.`);
+    } else why.push("Keine aktuellen Aktivitätsdaten.");
+    if (M.ov) why.push(`Das NOAA-Oval gibt für deinen Ort ${Math.round(M.ov.value)} %.`);
+    const sky = M.skyNow.dark === 0 ? "Sonne noch zu hoch" : (M.skyNow.cloud === null ? "Bewölkung unbekannt" : `${Math.round(M.skyNow.cloud)} % Wolken`) + (M.skyNow.dark > 0 && M.skyNow.dark < 1 ? ", Dämmerung" : "");
+    why.push(`Himmel: ${sky}${M.moonNow > 0 ? `, Mond ${Math.round(M.illNow * 100)} % am Himmel` : ""}.`);
     $("aHeroWhy").textContent = why.join(" ");
 
-    const pills = [el("span", { class: "pill", text: `Aktivität ${M.actScore}/10` })];
-    if (M.sw && M.sw.source) pills.push(el("span", { class: "pill", text: `Satellit ${M.sw.source}` }));
-    if (M.hp30Now) pills.push(el("span", { class: "pill", text: `GFZ Hp30 ${kpTxt(M.hp30Now.kp)} um ${hhmm(M.hp30Now.ms)}` }));
-    if (M.sw) pills.push(el("span", { class: "pill" + (M.sw.dataAgeMin > 30 ? " conf-niedrig" : ""), text: `Messung vor ${M.sw.dataAgeMin} min` }));
-    pills.push(el("span", { class: "pill", text: `Mond ${Math.round(M.illNow * 100)} %${M.moonNow > 0 ? ", am Himmel" : ""}` }));
+    $("aOutlook").replaceChildren(...M.outlook.map(o => el("div", { class: "ol" }, [
+      el("small", { text: `in ${o.dh} h (${hhmm(o.ms)})` }),
+      el("b", { class: o.score ? "c" + o.score : "", text: o.score ? o.score + "/10" : "–" }),
+      el("span", { text: `Kp ${kpTxt(o.kp)}` + (o.dark === 0 ? ", hell" : o.cloud !== null ? `, ${Math.round(o.cloud)} % Wolken` : "") })
+    ])));
+
+    const pills = [];
+    if (M.sw && M.sw.source) pills.push(el("span", { class: "pill", text: `Satellit ${M.sw.source}, Messung vor ${M.sw.dataAgeMin} min` }));
+    pills.push(el("span", { class: "pill", text: `${state.loc.name}: ab Kp ${kpTxt(M.need.horizon)} Horizont, ab ${kpTxt(M.need.overhead)} über dir` }));
     $("aHeroPills").replaceChildren(...pills);
   }
 
-  function renderSolarWind(M) {
-    const R = aur.raw, sw = M.sw;
-    if (!sw) { $("swTiles").replaceChildren(el("div", { class: "status", text: "Keine Sonnenwind-Daten erhalten." })); return; }
-    $("swLead").textContent = `Gemessen von ${sw.source || "dem aktiven Satelliten"} am Punkt L1, rund 1,5 Millionen km vor der Erde.` +
-      (sw.travelMin ? ` Bei ${fmtNum(sw.v30 ?? sw.speed)} km/s braucht der Sonnenwind etwa ${sw.travelMin} Minuten bis zu uns.` : "");
-    const dens = sw.n30 ?? sw.density;
-    const densW = dens === null ? "keine Daten" : dens < 5 ? "dünn" : dens < 15 ? "normal" : "dicht";
-    const bzTile = el("div", { class: "tile" }, [
-      el("span", { class: "k", text: "Bz, Mittel 30 min" }),
-      el("span", { class: "v" }, [fmtNum(sw.bz30, 1) + " ", el("small", { text: "nT" })]),
-      el("span", { class: "w", text: N.bzWords(sw.bz30) }),
-      bzSpark(R.mag, sw)
-    ]);
-    $("swTiles").replaceChildren(
-      bzTile,
-      el("div", { class: "tile" }, [
-        el("span", { class: "k", text: "Geschwindigkeit" }),
-        el("span", { class: "v" }, [fmtNum(sw.v30 ?? sw.speed) + " ", el("small", { text: "km/s" })]),
-        el("span", { class: "w", text: N.speedWords(sw.v30 ?? sw.speed) })
-      ]),
-      el("div", { class: "tile" }, [
-        el("span", { class: "k", text: "Dichte" }),
-        el("span", { class: "v" }, [fmtNum(dens, 1) + " ", el("small", { text: "Teilchen/cm³" })]),
-        el("span", { class: "w", text: densW })
-      ])
-    );
-  }
-  function bzSpark(mag, sw) {
-    const end = mag.length ? mag[mag.length - 1].ms : Date.now();
-    const pts = mag.filter(x => x.ms >= end - 2 * 3600000 && x.bz !== null);
-    const svg = svgEl("svg", { class: "spark", viewBox: "0 0 200 34", preserveAspectRatio: "none", role: "img", "aria-label": "Bz der letzten 2 Stunden" });
-    if (pts.length < 2) return svg;
-    const lim = Math.max(10, ...pts.map(p => Math.abs(p.bz)));
-    const x = ms => (ms - (end - 2 * 3600000)) / (2 * 3600000) * 200;
-    const y = v => 17 - v / lim * 15;
-    svg.appendChild(svgEl("line", { x1: 0, x2: 200, y1: 17, y2: 17, "vector-effect": "non-scaling-stroke" }, "stroke:var(--line);stroke-width:1"));
-    const d = pts.map((p, i) => (i ? "L" : "M") + x(p.ms).toFixed(1) + " " + y(p.bz).toFixed(1)).join("");
-    // Fläche unter null (südlich = günstig)
-    svg.appendChild(svgEl("path", { d: d + `L${x(pts[pts.length - 1].ms).toFixed(1)} 17L${x(pts[0].ms).toFixed(1)} 17Z`, "clip-path": "" }, "fill:var(--aurora);opacity:.18"));
-    svg.appendChild(svgEl("path", { d, "vector-effect": "non-scaling-stroke" }, "fill:none;stroke:var(--aurora);stroke-width:1.5"));
-    return svg;
-  }
-
-  function renderGauge(M) {
-    const svg = $("kpGauge");
-    const W = Math.max(260, svg.clientWidth || 600), H = 64, pad = 14;
-    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-    svg.replaceChildren();
-    const x = k => pad + Math.max(0, Math.min(9, k)) / 9 * (W - 2 * pad);
-    const y0 = 26, h = 10;
-    svg.appendChild(svgEl("rect", { x: x(0), y: y0, width: x(9) - x(0), height: h, rx: 5 }, "fill:var(--surface-2)"));
-    svg.appendChild(svgEl("rect", { x: x(M.need.horizon), y: y0, width: Math.max(0, x(M.need.overhead) - x(M.need.horizon)), height: h }, "fill:var(--aurora-dim)"));
-    svg.appendChild(svgEl("rect", { x: x(M.need.overhead), y: y0, width: x(9) - x(M.need.overhead), height: h, rx: 5 }, "fill:var(--aurora)"));
-    for (let k = 0; k <= 9; k++) {
-      const t = svgEl("text", { x: x(k), y: y0 + h + 14, "text-anchor": "middle" }, "fill:var(--muted);font:11px var(--font-mono)");
-      t.textContent = k; svg.appendChild(t);
-    }
-    if (M.kpShort !== null && M.kpShort !== undefined) {
-      const cx = x(M.kpShort);
-      svg.appendChild(svgEl("path", { d: `M${cx - 6} ${y0 - 9}L${cx + 6} ${y0 - 9}L${cx} ${y0 - 1}Z` }, "fill:var(--fg)"));
-      const lab = svgEl("text", { x: Math.min(W - 40, Math.max(40, cx)), y: y0 - 12, "text-anchor": "middle" }, "fill:var(--fg);font:500 11px var(--font-mono)");
-      lab.textContent = "jetzt " + kpTxt(M.kpShort);
-      svg.appendChild(lab);
-    }
-    const name = state.loc.name;
-    $("gaugeText").textContent = `${name} liegt auf etwa ${fmtNum(M.mlat, 0)}° magnetischer Breite. Ab Kp ${kpTxt(M.need.horizon)} ist Nordlicht tief am Nordhorizont möglich (hellgrün), ab Kp ${kpTxt(M.need.overhead)} auch über dir (grün). Der Pfeil zeigt die aktuelle Schätzung aus Kp und Sonnenwind.`;
-  }
-
-  function renderAuroraNights(M) {
-    const box = $("aNights");
-    if (!M.nights.length) { box.replaceChildren(el("div", { class: "status", text: "Keine dunklen Stunden mit Kp-Vorhersage im Zeitraum." })); return; }
-    box.style.flexDirection = "column";
-    box.replaceChildren(...M.nights.map((n, i) => el("div", { class: "tile", style: "flex-direction:row;gap:12px;align-items:center" }, [
-      el("span", { class: "n c" + n.score, style: "font:700 1.8rem/1 var(--font-display);min-width:2.2ch;text-align:right", text: String(n.score) }),
-      el("div", { style: "display:flex;flex-direction:column;min-width:0" }, [
-        el("b", { text: (i === 0 && isTonight(n.dateKey) ? "Heute Nacht" : "Nacht " + new Date(n.dateKey).toLocaleDateString("de-DE", { weekday: "short", day: "numeric", month: "numeric", timeZone: "UTC" })) }),
-        el("span", { class: "w", text: n.text })
-      ])
-    ])));
-  }
-
-  function renderKpChart(M) {
-    const R = aur.raw, svg = $("kpChart");
-    const now = M.now;
-    const startMs = Math.floor((now - 24 * 3600000) / 10800000) * 10800000;
-    const slots = [];
-    for (let t = startMs; t < now + 72 * 3600000; t += 10800000) {
-      const n = R.kpF.find(x => x.ms === t);
-      const g = R.gfzFresh ? R.gfzF.find(x => x.ms === t) : null;
-      const m = R.gfzK.find(x => x.ms === t);
-      const past = t + 10800000 <= now;
-      const val = past ? (m ? m.kp : (n ? n.kp : null)) : (n ? n.kp : (g ? g.median : null));
-      if (val === null && !g) continue;
-      const midSun = A.sunAltitude(t + 5400000, state.loc.lat, state.loc.lon);
-      const cl = (state.hoursAll || []).filter(h => h.ms >= t && h.ms < t + 10800000).map(h => h.cloud);
-      slots.push({ t, past, val, src: past ? (m ? "GFZ gemessen" : "NOAA beobachtet") : (n ? "NOAA Vorhersage" : "GFZ Median"), noaa: n ? n.kp : null, g, night: midSun < -6, cloud: cl.length ? cl.reduce((a, b) => a + b, 0) / cl.length : null });
-    }
+  /* ---------- Hauptdiagramm ---------- */
+  function renderMainChart(M) {
+    const svg = $("kpChart"), tl = M.tl;
+    $("chartLead").textContent = `Letzte 12 Stunden gemessen, danach Vorhersage für 3 Tage. Über der Linie „Horizont“ ist in ${state.loc.name} Nordlicht tief im Norden möglich, über „über dir“ auch im Zenit.`;
     $("kpLegend").replaceChildren(
-      el("span", null, [el("i", { style: "background:var(--aurora)" }), "Kp über der Schwelle „über dir“"]),
-      el("span", null, [el("i", { style: "background:var(--aurora-dim)" }), "über „Horizont“"]),
-      el("span", null, [el("i", { style: "background:var(--line)" }), "darunter"]),
-      R.gfzFresh ? el("span", null, [el("i", { style: "background:var(--fg);border-radius:50%;width:8px;height:8px" }), R.gfzSrc === "Hpo-Modell" ? "GFZ-Median, Linie bis Maximum" : "GFZ-Median mit Spanne"]) : null,
+      el("span", null, [el("i", { class: "sw-line", style: "background:var(--fg)" }), "GFZ gemessen"]),
+      el("span", null, [el("i", { class: "sw-line", style: "background:var(--aurora)" }), "GFZ-Vorhersage"]),
+      el("span", null, [el("i", { style: "background:var(--aurora);opacity:.25" }), "bis Maximum"]),
+      el("span", null, [el("i", { class: "sw-line dash", style: "background:var(--accent)" }), "NOAA (3 h)"]),
       el("span", null, [el("i", { style: "background:var(--surface-2);border:1px solid var(--line)" }), "Nacht"])
     );
-    const W = Math.max(300, svg.clientWidth || 600), H = 210;
-    const mL = 22, mR = 62, mT = 12, mB = 26;
+    const W = Math.max(300, svg.getBoundingClientRect().width || 600);
+    const H = 236, mL = 24, mR = 58, mT = 12, plotB = 186, cloudY = 196, cloudH = 12;
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("height", H);
     svg.replaceChildren();
-    if (!slots.length) { const t = svgEl("text", { x: W / 2, y: H / 2, "text-anchor": "middle" }, "fill:var(--muted);font:13px var(--font-body)"); t.textContent = "Keine Kp-Daten erhalten."; svg.appendChild(t); return; }
-    const t0 = slots[0].t, t1 = slots[slots.length - 1].t + 10800000;
+    if (!tl.length || !tl.some(h => h.kp !== null)) { svg.appendChild(svgText(W / 2, H / 2, "Keine Aktivitätsdaten erhalten.", "fill:var(--muted);font:13px var(--font-body)", "middle")); return; }
+    const t0 = tl[0].ms, t1 = tl[tl.length - 1].ms + HOUR;
     const x = t => mL + (t - t0) / (t1 - t0) * (W - mL - mR);
-    const y = k => mT + (1 - Math.min(9, Math.max(0, k)) / 9) * (H - mT - mB);
-    const slotW = x(t0 + 10800000) - x(t0);
-    // Nacht-Schattierung
-    slots.forEach(s => { if (s.night) svg.appendChild(svgEl("rect", { x: x(s.t), y: mT, width: slotW, height: H - mT - mB }, "fill:var(--surface-2)")); });
+    const y = k => mT + (1 - Math.min(9, Math.max(0, k)) / 9) * (plotB - mT);
+    const cw = x(t0 + HOUR) - x(t0);
+    // Nacht
+    tl.forEach(h => { if (h.sky.sun < -6) svg.appendChild(svgEl("rect", { x: x(h.ms), y: mT, width: cw + 0.5, height: plotB - mT }, "fill:var(--surface-2)")); });
     // Raster
     [0, 3, 6, 9].forEach(k => {
       svg.appendChild(svgEl("line", { x1: mL, x2: W - mR, y1: y(k), y2: y(k) }, "stroke:var(--line);stroke-width:1"));
-      const t = svgEl("text", { x: mL - 6, y: y(k) + 4, "text-anchor": "end" }, "fill:var(--muted);font:10px var(--font-mono)"); t.textContent = k; svg.appendChild(t);
-    });
-    // Balken
-    const gap = 2, bw = Math.max(2, slotW - gap);
-    slots.forEach(s => {
-      if (s.val === null) return;
-      const col = s.val >= M.need.overhead ? "var(--aurora)" : s.val >= M.need.horizon ? "var(--aurora-dim)" : "var(--line)";
-      const top = y(s.val), base = y(0);
-      const hgt = Math.max(1, base - top);
-      const r = Math.min(4, bw / 2, hgt);
-      const xx = x(s.t) + gap / 2;
-      svg.appendChild(svgEl("path", { d: `M${xx} ${base}V${top + r}Q${xx} ${top} ${xx + r} ${top}H${xx + bw - r}Q${xx + bw} ${top} ${xx + bw} ${top + r}V${base}Z` }, `fill:${col};opacity:${s.past ? 0.55 : 1}`));
-    });
-    // GFZ-Median mit Spanne
-    slots.forEach(s => {
-      if (!s.g || s.past || s.g.median === null) return;
-      const cx = x(s.t) + slotW / 2;
-      const lo = s.g.q1 ?? s.g.median, hi = s.g.q3 ?? s.g.max;
-      if (hi !== null && hi !== undefined) svg.appendChild(svgEl("line", { x1: cx, x2: cx, y1: y(lo), y2: y(hi) }, "stroke:var(--fg);stroke-width:2;stroke-linecap:round"));
-      svg.appendChild(svgEl("circle", { cx, cy: y(s.g.median), r: 3.5 }, "fill:var(--fg);stroke:var(--surface);stroke-width:2"));
+      svg.appendChild(svgText(mL - 6, y(k) + 4, String(k), "fill:var(--muted);font:10px var(--font-mono)", "end"));
     });
     // Schwellen
     [[M.need.horizon, "Horizont"], [M.need.overhead, "über dir"]].forEach(([k, lab]) => {
       if (k > 9) return;
-      svg.appendChild(svgEl("line", { x1: mL, x2: W - mR, y1: y(k), y2: y(k) }, "stroke:var(--aurora);stroke-width:1;stroke-dasharray:4 3"));
-      const t = svgEl("text", { x: W - mR + 4, y: y(k) + 4 }, "fill:var(--fg);font:10px var(--font-mono)"); t.textContent = lab; svg.appendChild(t);
+      svg.appendChild(svgEl("line", { x1: mL, x2: W - mR, y1: y(k), y2: y(k) }, "stroke:var(--aurora);stroke-width:1;stroke-dasharray:4 3;opacity:.8"));
+      svg.appendChild(svgText(W - mR + 4, y(k) + 4, lab, "fill:var(--fg);font:10px var(--font-mono)"));
     });
-    // Jetzt-Linie
-    const nx = x(now);
-    svg.appendChild(svgEl("line", { x1: nx, x2: nx, y1: mT, y2: H - mB }, "stroke:var(--fg);stroke-width:1.5"));
-    const nt = svgEl("text", { x: nx + 3, y: mT + 9 }, "fill:var(--fg);font:10px var(--font-mono)"); nt.textContent = "jetzt"; svg.appendChild(nt);
-    // Tagesbeschriftung an lokaler Mitternacht
-    for (let t = t0; t <= t1; t += 3600000) {
-      const d = local(t);
-      if (d.getUTCHours() === 0 && t > t0) {
-        svg.appendChild(svgEl("line", { x1: x(t), x2: x(t), y1: H - mB, y2: H - mB + 4 }, "stroke:var(--muted)"));
-        const lab = svgEl("text", { x: x(t) + 3, y: H - 8 }, "fill:var(--muted);font:10px var(--font-mono)");
-        lab.textContent = d.toLocaleDateString("de-DE", { weekday: "short", timeZone: "UTC" }).replace(".", "") + " " + d.getUTCDate() + ".";
-        svg.appendChild(lab);
-      }
+    const mid = h => x(h.ms) + cw / 2;
+    const path = pts => pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join("");
+    // GFZ-Band (Median bis Maximum), Zukunft
+    const fut = tl.filter(h => !h.past && h.gfzMed !== null);
+    if (fut.length > 1) {
+      const top = fut.map(h => [mid(h), y(h.gfzMax ?? h.gfzMed)]), bot = fut.slice().reverse().map(h => [mid(h), y(h.gfzMed)]);
+      svg.appendChild(svgEl("path", { d: path(top.concat(bot)) + "Z" }, "fill:var(--aurora);opacity:.22"));
     }
-    // Auswahl-Markierung und Bedienung
-    const hl = svgEl("rect", { x: 0, y: mT, width: slotW, height: H - mT - mB, rx: 3 }, "fill:none;stroke:var(--accent);stroke-width:1.5;display:none");
-    svg.appendChild(hl);
+    // NOAA-Stufenlinie (Vergleich)
+    const noaaPts = [];
+    tl.forEach(h => { if (h.noaa !== null) { noaaPts.push([x(h.ms), y(h.noaa)], [x(h.ms) + cw, y(h.noaa)]); } });
+    if (noaaPts.length) svg.appendChild(svgEl("path", { d: path(noaaPts) }, "fill:none;stroke:var(--accent);stroke-width:1.5;stroke-dasharray:5 3"));
+    // GFZ-Median-Linie (Vorhersage)
+    if (fut.length > 1) svg.appendChild(svgEl("path", { d: path(fut.map(h => [mid(h), y(h.gfzMed)])) }, "fill:none;stroke:var(--aurora);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round"));
+    // Gemessen
+    const meas = tl.filter(h => h.past && h.measured !== null);
+    if (meas.length > 1) svg.appendChild(svgEl("path", { d: path(meas.map(h => [mid(h), y(h.measured)])) }, "fill:none;stroke:var(--fg);stroke-width:2;stroke-linejoin:round"));
+    meas.slice(-1).forEach(h => svg.appendChild(svgEl("circle", { cx: mid(h), cy: y(h.measured), r: 3.5 }, "fill:var(--fg);stroke:var(--surface);stroke-width:2")));
+    // Wolkenstreifen
+    svg.appendChild(svgText(mL - 6, cloudY + 10, "☁", "fill:var(--muted);font:11px var(--font-body)", "end"));
+    tl.forEach(h => {
+      if (h.sky.cloud === null) return;
+      svg.appendChild(svgEl("rect", { x: x(h.ms) + 0.5, y: cloudY, width: Math.max(1, cw - 1), height: cloudH, rx: 1.5 }, `fill:var(--muted);opacity:${(0.08 + 0.85 * h.sky.cloud / 100).toFixed(2)}`));
+    });
+    // Jetzt
+    const nx = x(M.now);
+    svg.appendChild(svgEl("line", { x1: nx, x2: nx, y1: mT, y2: cloudY + cloudH }, "stroke:var(--fg);stroke-width:1.5"));
+    svg.appendChild(svgText(nx + 3, mT + 9, "jetzt", "fill:var(--fg);font:10px var(--font-mono)"));
+    // Tage
+    tl.forEach(h => {
+      const d = local(h.ms);
+      if (d.getUTCHours() === 0 && h.ms > t0) {
+        svg.appendChild(svgEl("line", { x1: x(h.ms), x2: x(h.ms), y1: plotB, y2: plotB + 4 }, "stroke:var(--muted)"));
+        svg.appendChild(svgText(x(h.ms) + 3, H - 6, d.toLocaleDateString("de-DE", { weekday: "short", timeZone: "UTC" }).replace(".", "") + " " + d.getUTCDate() + ".", "fill:var(--muted);font:10px var(--font-mono)"));
+      }
+    });
+    // Bedienung
+    const hair = svgEl("line", { x1: 0, x2: 0, y1: mT, y2: cloudY + cloudH }, "stroke:var(--accent);stroke-width:1.5;display:none");
+    svg.appendChild(hair);
     const pick = ev => {
       const rect = svg.getBoundingClientRect();
       const px = (ev.clientX - rect.left) / rect.width * W;
-      const s = slots.find(q => px >= x(q.t) && px < x(q.t) + slotW);
-      if (!s) return;
-      hl.setAttribute("x", x(s.t)); hl.style.display = "";
-      const parts = [`${dayName(s.t)} ${hhmm(s.t)}–${hhmm(s.t + 10800000)}`, `Kp ${kpTxt(s.val)} (${s.src})`];
-      if (!s.past && s.g && s.g.median !== null) parts.push(s.g.q1 !== null ? `GFZ ${kpTxt(s.g.median)} (${kpTxt(s.g.q1)}–${kpTxt(s.g.q3)})` : `GFZ ${kpTxt(s.g.median)} (max. ${kpTxt(s.g.max)})`);
-      if (s.cloud !== null) parts.push(`${Math.round(s.cloud)} % Wolken`);
-      parts.push(s.night ? "dunkel" : "hell");
-      $("kpReadout").textContent = parts.join(" · ");
+      const h = tl.find(q => px >= x(q.ms) && px < x(q.ms) + cw);
+      if (!h) return;
+      hair.setAttribute("x1", mid(h)); hair.setAttribute("x2", mid(h)); hair.style.display = "";
+      const p = [`${dayName(h.ms)} ${hhmm(h.ms)}`];
+      if (h.past) p.push(`gemessen ${kpTxt(h.measured)}`);
+      else if (h.gfzMed !== null) p.push(`GFZ ${kpTxt(h.gfzMed)} (max. ${kpTxt(h.gfzMax)})`);
+      if (h.noaa !== null) p.push(`NOAA ${kpTxt(h.noaa)}`);
+      if (h.sky.cloud !== null) p.push(`${Math.round(h.sky.cloud)} % Wolken`);
+      p.push(h.sky.sun < -6 ? "dunkel" : "hell");
+      if (!h.past && h.score !== null && h.hasWeather) p.push(`Note ${h.score}/10`);
+      $("kpReadout").textContent = p.join(" · ");
     };
     svg.onpointerdown = pick; svg.onpointermove = pick;
-    svg.onpointerleave = () => { hl.style.display = "none"; };
+    svg.onpointerleave = () => { hair.style.display = "none"; };
+  }
+
+  /* ---------- Trend-Kacheln ---------- */
+  function spark(points, opts) {
+    const svg = svgEl("svg", { class: "spark", viewBox: "0 0 200 34", preserveAspectRatio: "none", role: "img", "aria-label": opts.label });
+    const p = points.filter(q => q.v !== null && q.v !== undefined);
+    if (p.length < 2) return svg;
+    const t0 = opts.t0, t1 = opts.t1;
+    let lo = opts.min ?? Math.min(...p.map(q => q.v)), hi = opts.max ?? Math.max(...p.map(q => q.v));
+    if (opts.symmetric) { const m = Math.max(opts.symmetric, ...p.map(q => Math.abs(q.v))); lo = -m; hi = m; }
+    if (hi - lo < 1e-6) { hi += 1; lo -= 1; }
+    const x = ms => (ms - t0) / (t1 - t0) * 200, y = v => 31 - (v - lo) / (hi - lo) * 28;
+    if (opts.symmetric) svg.appendChild(svgEl("line", { x1: 0, x2: 200, y1: y(0), y2: y(0), "vector-effect": "non-scaling-stroke" }, "stroke:var(--line);stroke-width:1"));
+    const d = p.map((q, i) => (i ? "L" : "M") + x(q.ms).toFixed(1) + " " + y(q.v).toFixed(1)).join("");
+    svg.appendChild(svgEl("path", { d, "vector-effect": "non-scaling-stroke" }, `fill:none;stroke:${opts.color};stroke-width:1.6;stroke-linejoin:round`));
+    return svg;
+  }
+  function trendTile(k, value, unit, words, tr, trWords, sp) {
+    return el("div", { class: "tile" }, [
+      el("span", { class: "k", text: k }),
+      el("span", { class: "v" }, [value + " ", el("small", { text: unit }), el("span", { class: "arrow", title: tr, text: " " + ARROW[tr] })]),
+      el("span", { class: "w", text: words + (trWords ? " · " + trWords : "") }),
+      sp
+    ]);
+  }
+  function renderTrends(M) {
+    const R = aur.raw, now = M.now, t0 = now - 6 * HOUR;
+    const tiles = [];
+    // Hp30 gemessen
+    const h30 = R.hp30m.filter(r => r.ms >= t0).map(r => ({ ms: r.ms + HOUR / 4, v: Math.min(9, r.kp) }));
+    const trH = N.trendOf(h30, 0.25);
+    const lastH = h30.length ? h30[h30.length - 1].v : null;
+    tiles.push(trendTile("Hp30 gemessen (GFZ)", kpTxt(lastH), lastH !== null ? `um ${hhmm(h30[h30.length - 1].ms - HOUR / 4)}` : "", lastH === null ? "keine Daten" : reach(lastH, M.need), trH.dir, trH.dir === "unbekannt" ? "" : trH.dir,
+      spark(h30, { t0, t1: now, min: 0, max: Math.max(5, ...h30.map(q => q.v + 1)), color: "var(--fg)", label: "Hp30 der letzten 6 Stunden" })));
+    // Bz
+    const bz = R.mag.filter(r => r.ms >= t0 && r.bz !== null).map(r => ({ ms: r.ms, v: r.bz }));
+    const trB = N.trendOf(bz, 0.5);
+    const bzW = trB.dir === "fällt" ? "dreht nach Süden" : trB.dir === "steigt" ? "dreht nach Norden" : trB.dir;
+    tiles.push(trendTile("Bz, Mittel 30 min", M.sw ? fmtNum(M.sw.bz30, 1) : "–", "nT", M.sw ? N.bzWords(M.sw.bz30) : "keine Daten", trB.dir === "fällt" ? "steigt" : trB.dir === "steigt" ? "fällt" : trB.dir, trB.dir === "unbekannt" ? "" : bzW,
+      spark(bz, { t0, t1: now, symmetric: 10, color: "var(--aurora)", label: "Bz der letzten 6 Stunden" })));
+    // Geschwindigkeit
+    const v = R.wind.filter(r => r.ms >= t0 && r.speed !== null).map(r => ({ ms: r.ms, v: r.speed }));
+    const trV = N.trendOf(v, 15);
+    const sp = M.sw ? (M.sw.v30 ?? M.sw.speed) : null;
+    tiles.push(trendTile("Sonnenwind", fmtNum(sp), "km/s", N.speedWords(sp), trV.dir, trV.dir === "unbekannt" ? "" : trV.dir,
+      spark(v, { t0, t1: now, color: "var(--accent)", label: "Geschwindigkeit der letzten 6 Stunden" })));
+    $("trendTiles").replaceChildren(...tiles);
+    const sw = M.sw;
+    $("swLead").textContent = sw ? `Bz und Sonnenwind misst ${sw.source || "der aktive Satellit"} rund 1,5 Millionen km vor der Erde.` + (sw.travelMin ? ` Bei ${fmtNum(sp)} km/s ist das, was er jetzt sieht, in etwa ${sw.travelMin} Minuten hier (gegen ${hhmm(now + sw.travelMin * 60000)} Uhr).` : "") + " Für Bz zeigt der Pfeil nach oben, wenn es nach Süden dreht, also günstiger wird." : "Keine Sonnenwind-Daten erhalten.";
+  }
+
+  function renderAuroraNights(M) {
+    const box = $("aNights");
+    if (!M.nights.length) { box.replaceChildren(el("div", { class: "status", text: "Keine dunklen Stunden mit Vorhersage im Zeitraum." })); return; }
+    box.replaceChildren(...M.nights.map((n, i) => el("div", { class: "nrow" }, [
+      el("span", { class: "ns c" + n.score, text: String(n.score) }),
+      el("div", { class: "nt" }, [
+        el("b", { text: (i === 0 && isTonight(n.dateKey) ? "Heute Nacht" : "Nacht " + new Date(n.dateKey).toLocaleDateString("de-DE", { weekday: "short", day: "numeric", month: "numeric", timeZone: "UTC" })) }),
+        el("span", { text: n.text })
+      ]),
+      el("div", { class: "hwrap" }, [hourStrip(n.hours), el("small", { text: `${hhmm(n.hours[0].ms)}–${hhmm(n.hours[n.hours.length - 1].ms + HOUR)}` })])
+    ])));
+  }
+  // kleine Stundenleiste je Nacht: Höhe = Note
+  function hourStrip(hours) {
+    const svg = svgEl("svg", { class: "hstrip", viewBox: `0 0 ${hours.length * 8} 28`, preserveAspectRatio: "none", role: "img", "aria-label": "Note je Stunde" });
+    hours.forEach((h, i) => {
+      const hh = 3 + (h.score - 1) / 9 * 25;
+      const col = h.score >= 8 ? "var(--s-top)" : h.score >= 6 ? "var(--s-good)" : h.score >= 4 ? "var(--s-meh)" : "var(--s-bad)";
+      svg.appendChild(svgEl("rect", { x: i * 8 + 1, y: 28 - hh, width: 6, height: hh, rx: 1.5 }, `fill:${col}`));
+    });
+    return svg;
   }
 
   function render27(M) {
     const box = $("cal27");
     if (!M.days.length) { box.replaceChildren(el("div", { class: "status", style: "grid-column:1/-1", text: "Der 27-Tage-Ausblick ist gerade nicht verfügbar." })); return; }
     const first = new Date(M.days[0].dateMs);
-    const lead = (first.getUTCDay() + 6) % 7; // Montag = 0
+    const lead = (first.getUTCDay() + 6) % 7;
     const cells = [];
     ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].forEach(d => cells.push(el("div", { class: "dd", style: "text-align:center;font-size:.7rem;color:var(--muted)", text: d })));
     for (let i = 0; i < lead; i++) cells.push(el("div", { class: "day empty" }));
@@ -999,8 +1076,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       const dt = new Date(d.dateMs);
       cells.push(el("div", { class: "day", title: `Größter Kp ${d.kpMax}, Mond ${Math.round(d.illum * 100)} %${d.dark === 0 ? ", keine Dunkelheit" : ""}` }, [
         el("span", { class: "dd", text: dt.getUTCDate() + "." + (dt.getUTCMonth() + 1) + "." }),
-        el("span", { class: "ds c" + d.score, text: String(d.score) }),
-        el("span", { class: "dk", text: "Kp " + d.kpMax })
+        el("span", { class: "ds c" + d.score, text: String(d.score) })
       ]));
     });
     box.replaceChildren(...cells);

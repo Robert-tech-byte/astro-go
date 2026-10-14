@@ -19,13 +19,17 @@
     gfzForecast: "https://spaceweather.gfz.de/fileadmin/Kp-Forecast/CSV/kp_product_file_FORECAST_PAGER_SWIFT_LAST.csv",
     gfzKp: (startIso, endIso) => `https://kp.gfz.de/app/json/?start=${startIso}&end=${endIso}&index=Kp`,
     gfzHp30: (startIso, endIso) => `https://kp.gfz.de/app/json/?start=${startIso}&end=${endIso}&index=Hp30`,
+    gfzHp60: (startIso, endIso) => `https://kp.gfz.de/app/json/?start=${startIso}&end=${endIso}&index=Hp60`,
+    gfzHpoHp60: "https://isdc-data.gfz.de/geomagnetism/HpoForecast/v0102/output/Hpo/json/hpo_forecast_mean_bars_Hp60.json",
     // Kopien neben der Seite (GitHub Actions holt sie halbstündlich, weil GFZ keinen Browser-Abruf erlaubt)
     local: {
       gfzHpoKp: "data/gfz_hpo_kp.json",
       gfzHpoHp30: "data/gfz_hpo_hp30.json",
+      gfzHpoHp60: "data/gfz_hpo_hp60.json",
       gfzForecast: "data/gfz_swift.csv",
       gfzKp: "data/gfz_kp.json",
       gfzHp30: "data/gfz_hp30.json",
+      gfzHp60: "data/gfz_hp60.json",
       meta: "data/meta.json"
     }
   };
@@ -120,6 +124,7 @@
   }
   const parseGfzKp = j => parseGfzIndex(j, "Kp");
   const parseGfzHp30 = j => parseGfzIndex(j, "Hp30");
+  const parseGfzHp60 = j => parseGfzIndex(j, "Hp60");
 
   // Hpo-Vorhersage: {"MEDIAN": {"2026-10-14T09:00:00.000": 4.33, …}, "MAX": {…}}, Zeiten in UTC
   function parseHpo(json) {
@@ -251,11 +256,58 @@
     return { noaa: n, gfz: g, gfzMax: gMax, kp: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null };
   }
 
+  /* ---------- Stündliche Aktivität: gemessen (Vergangenheit) und Vorhersage (Zukunft) ----------
+     R: { hp60m, hp30m, gfzK (gemessen), hp60f (Hpo-Vorhersage), hpoKp, kpF (NOAA) }
+     Zukunft: GFZ-Median (stündlich, Hp60, auf 9 gekappt) zu 60 %, NOAA-Kp (3 h) zu 40 %. */
+  function activityTimeline(R, nowMs, backH = 12, fwdH = 72) {
+    const H = 3600000;
+    const start = Math.floor(nowMs / H) * H - backH * H;
+    const inSlot = (arr, ms, step) => arr.find(x => ms >= x.ms && ms < x.ms + step);
+    const out = [];
+    for (let ms = start; ms <= start + (backH + fwdH) * H; ms += H) {
+      const past = ms + H <= nowMs;
+      // gemessen: Hp60, sonst Mittel der beiden Hp30, sonst Kp
+      let measured = null;
+      const m60 = (R.hp60m || []).find(x => x.ms === ms);
+      if (m60) measured = m60.kp;
+      else {
+        const h30 = (R.hp30m || []).filter(x => x.ms >= ms && x.ms < ms + H);
+        if (h30.length) measured = h30.reduce((a, x) => a + x.kp, 0) / h30.length;
+        else { const k = inSlot(R.gfzK || [], ms, 3 * H); if (k) measured = k.kp; }
+      }
+      const f60 = (R.hp60f || []).find(x => x.ms === ms);
+      const fKp = f60 ? null : inSlot(R.hpoKp || [], ms, 3 * H);
+      const gfzMed = f60 ? f60.median : (fKp ? fKp.median : null);
+      const gfzMax = f60 ? f60.max : (fKp ? fKp.max : null);
+      const n = inSlot(R.kpF || [], ms, 3 * H);
+      const noaa = n ? n.kp : null;
+      let kp;
+      if (past && measured !== null) kp = measured;
+      else if (gfzMed !== null && noaa !== null) kp = 0.6 * Math.min(9, gfzMed) + 0.4 * noaa;
+      else kp = gfzMed !== null ? Math.min(9, gfzMed) : (noaa ?? measured);
+      out.push({ ms, past, measured, gfzMed, gfzMax, noaa, kp: kp === undefined ? null : kp, gfzHourly: !!f60 });
+    }
+    return out;
+  }
+
+  // Trend aus einer Reihe {ms, v}: Steigung je Stunde per linearer Regression
+  function trendOf(points, threshold) {
+    const p = points.filter(x => x.v !== null && x.v !== undefined && isFinite(x.v));
+    if (p.length < 3) return { dir: "unbekannt", slope: null };
+    const t0 = p[0].ms, xs = p.map(x => (x.ms - t0) / 3600000), ys = p.map(x => x.v);
+    const mx = xs.reduce((a, b) => a + b, 0) / xs.length, my = ys.reduce((a, b) => a + b, 0) / ys.length;
+    let num = 0, den = 0;
+    xs.forEach((x, i) => { num += (x - mx) * (ys[i] - my); den += (x - mx) * (x - mx); });
+    const slope = den ? num / den : 0;
+    return { dir: slope > threshold ? "steigt" : slope < -threshold ? "fällt" : "stabil", slope };
+  }
+
   function score(q) { return clamp(Math.round(1 + 9 * clamp(q, 0, 1)), 1, 10); }
 
   const api = {
     URLS, toMs, rows, magLat, kpNeeded, activityFromKp,
-    parseKpForecast, parseKpNow, parseGfzCsv, parseGfzKp, parseGfzHp30, parseHpo, isFresh, parse27, parseMag, parseWind, ovationAt,
+    parseKpForecast, parseKpNow, parseGfzCsv, parseGfzKp, parseGfzHp30, parseGfzHp60, parseHpo, isFresh, parse27,
+    activityTimeline, trendOf, parseMag, parseWind, ovationAt,
     solarWindSummary, bzWords, speedWords, darkFactor, skyFactor, kpAt, score
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
