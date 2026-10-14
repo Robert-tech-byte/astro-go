@@ -280,7 +280,8 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     <summary>So wird die Note berechnet</summary>
     <p>Jede Stunde mit Sonne unter −6° bekommt eine Qualität zwischen 0 und 1. Sie ist das Produkt mehrerer Faktoren; die Note ist <code>1 + 9 × Qualität</code>, gerundet.</p>
     <ul>
-      <li><b>Wolken:</b> tiefe und mittlere Wolken zählen voll, hohe zu 70 %. Die Werte der Modelle werden gewichtet gemittelt (MET Nordic doppelt, solange es reicht). Faktor <code>(1 − Bedeckung)^1,5</code>.</li>
+      <li><b>Wolken:</b> tiefe und mittlere Wolken zählen voll, hohe zu 70 %. Die Werte der Modelle werden gewichtet gemittelt. Liefert ein Modell keine Schichten, zählt seine Gesamtbewölkung. Faktor <code>(1 − Bedeckung)^1,5</code>.</li>
+      <li><b>Modelle je Ort:</b> Basis sind überall ECMWF (Gewicht 1,2) und ICON-EU (1,1), außerhalb Europas ICON Global (1,0). Dazu kommen die hochauflösenden Regionalmodelle, deren Gebiet den Ort abdeckt, z. B. MET Nordic, ICON-D2, AROME, ICON-CH, ICON 2I, UKV oder Harmonie (Gewicht 1,5–2,0). Sie zählen nur innerhalb ihrer Reichweite (meist 42–72 Stunden), danach tragen die Basismodelle allein.</li>
       <li><b>Dunkelheit:</b> astronomische Nacht 1,0; astronomische Dämmerung 0,7–1,0; nautische Dämmerung 0,35–0,7.</li>
       <li><b>Mond:</b> Beleuchtung × Höhe über dem Horizont. Bei Nebeln mit Duo-Band-Filter zählt der Mond nur zu 35 %, bei Galaxien und Haufen zu 80 %.</li>
       <li><b>Niederschlag, Nebel, Tau, Böen:</b> Abzüge bei Regen, Sichtweite unter 5 km, Taupunktabstand unter 2 °C und Böen über 20 km/h.</li>
@@ -437,7 +438,8 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     const allTimes = new Set();
     D.models.forEach(m => m.data.forEach((_, t) => allTimes.add(t)));
     const times = [...allTimes].sort((a, b) => a - b);
-    const start = times[0];
+    // Reichweite der Modelle ab jetzt zählen, nicht ab Mitternacht
+    const start = Math.max(times[0], Date.now());
     const hours = times.map(ms => A.scoreHour(ms, state.loc.lat, state.loc.lon, D.models, D.jet, start, state.target)).filter(Boolean);
     state.hoursAll = hours; // auch für die Nordlicht-Ansicht (Bewölkung je Stunde)
     const now = Date.now();
@@ -550,7 +552,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
 
   function renderModels() {
     const box = $("models");
-    box.replaceChildren(...state.data.status.map(s => el("span", { class: "model" + (s.ok ? "" : " off"), title: s.ok ? s.model.note : "Für diesen Ort oder Zeitraum keine Daten" }, [
+    box.replaceChildren(...state.data.status.filter(s => s.ok || !s.model.regional).map(s => el("span", { class: "model" + (s.ok ? "" : " off"), title: s.ok ? s.model.note : "Für diesen Ort oder Zeitraum keine Daten" }, [
       s.model.label + " ", el("small", { text: s.ok ? s.model.note : "keine Daten" })
     ])));
   }
@@ -567,15 +569,19 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     const hero = $("hero");
     hero.classList.add("loading");
     $("heroHeadline").textContent = "Lade Vorhersagen …";
-    $("heroWhy").textContent = "Vier Wettermodelle werden abgefragt.";
-    const reqs = A.MODELS.map(m => getJSON(A.forecastUrl(lat, lon, m.id, A.SURFACE_VARS, 5)).then(j => ({ m, j })));
+    const list = A.modelsFor(lat, lon);
+    $("heroWhy").textContent = `${list.length} Wettermodelle werden abgefragt.`;
+    // je Modell eine eigene Anfrage: ein Modell ohne Daten für diesen Ort fällt so einfach weg
+    const reqs = list.map(m => getJSON(A.forecastUrl(lat, lon, m.id, A.SURFACE_VARS, 5))
+      .then(j => ({ m, j, id: m.id }))
+      .catch(e => m.fallback ? getJSON(A.forecastUrl(lat, lon, m.fallback, A.SURFACE_VARS, 5)).then(j => ({ m, j, id: m.fallback })) : Promise.reject(e)));
     const jetReq = getJSON(A.forecastUrl(lat, lon, "ecmwf_ifs025", A.JET_VARS, 5));
     const res = await Promise.allSettled(reqs);
     const models = [], status = [];
     let offset = null, tz = null;
     res.forEach((r, i) => {
-      const m = A.MODELS[i];
-      const parsed = r.status === "fulfilled" ? A.parseModel(r.value.j, m.id) : null;
+      const m = list[i];
+      const parsed = r.status === "fulfilled" ? A.parseModel(r.value.j, r.value.id) : null;
       if (parsed) { models.push({ model: m, data: parsed.map }); offset = offset ?? parsed.offset; tz = tz ?? parsed.tz; }
       status.push({ model: m, ok: !!parsed });
     });

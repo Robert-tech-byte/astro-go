@@ -43,13 +43,43 @@
   }
 
   /* ---------- Modelle ---------- */
-  // weight: Gewicht im Konsens; hours: sinnvolle Reichweite der Vorhersage
-  const MODELS = [
-    { id: "metno_nordic", label: "MET Nordic", note: "1 km, nur Skandinavien", weight: 2.0, hours: 60 },
-    { id: "icon_eu", label: "ICON-EU", note: "DWD, 7 km", weight: 1.2, hours: 120 },
-    { id: "ecmwf_ifs025", label: "ECMWF IFS", note: "0,25°", weight: 1.2, hours: 240 },
-    { id: "ukmo_seamless", label: "UK Met Office", note: "global 10 km", weight: 1.0, hours: 168 }
+  // weight: Gewicht im Konsens; hours: Reichweite, in der das Modell zählt
+  // box: [latMin, latMax, lonMin, lonMax] – grobes Modellgebiet; liefert ein Modell trotzdem keine Daten, fällt es weg.
+  // Bei den "seamless"-Varianten zählt nur der hochauflösende Anfang (hours), danach steckt dort ECMWF bzw. ein globales Modell drin.
+  const BASE_MODELS = [
+    { id: "ecmwf_ifs025", label: "ECMWF IFS", note: "0,25°, bis 10 Tage", weight: 1.2, hours: 240 },
+    { id: "icon_eu", label: "ICON-EU", note: "DWD, 7 km, bis 5 Tage", weight: 1.1, hours: 120, box: [29.5, 70.5, -23.5, 62.5] },
+    { id: "dwd_icon_global", label: "ICON Global", note: "DWD, 11 km, bis 7 Tage", weight: 1.0, hours: 180, outsideOf: "icon_eu" }
   ];
+  // id: konkretes Modell (liefert außerhalb seines Gebiets keine Daten und fällt dann weg).
+  // fallback: bestätigte "seamless"-Kennung, falls Open-Meteo die konkrete Kennung nicht kennt;
+  // dann zählt das Modell nur innerhalb des Rechtecks (box) und seiner Reichweite (hours).
+  const REGIONAL_MODELS = [
+    { id: "metno_nordic", label: "MET Nordic", note: "1 km, bis 60 h", weight: 2.0, hours: 60, box: [53, 72, 0, 33] },
+    { id: "dwd_icon_d2", fallback: "icon_d2", label: "ICON-D2", note: "DWD, 2 km, bis 48 h", weight: 1.8, hours: 48, box: [43.2, 58.1, -3.9, 20.3] },
+    { id: "meteoswiss_icon_ch1", fallback: "meteoswiss_icon_seamless", label: "ICON-CH1", note: "MeteoSchweiz, 1 km, bis 33 h", weight: 1.4, hours: 33, box: [42.5, 50, 0, 17] },
+    { id: "meteoswiss_icon_ch2", label: "ICON-CH2", note: "MeteoSchweiz, 2 km, bis 120 h", weight: 1.3, hours: 120, box: [42.5, 50, 0, 17] },
+    { id: "meteofrance_arome_france_hd", label: "AROME France HD", note: "Météo-France, 1,5 km, bis 42 h", weight: 1.4, hours: 42, box: [37.5, 55.4, -12, 16] },
+    { id: "meteofrance_arome_france", fallback: "meteofrance_seamless", label: "AROME France", note: "Météo-France, 2,5 km, bis 42 h", weight: 1.2, hours: 42, box: [37.5, 55.4, -12, 16] },
+    { id: "italia_meteo_arpae_icon_2i", label: "ICON 2I", note: "ItaliaMeteo, 2 km, bis 72 h", weight: 1.8, hours: 72, box: [34, 50, 3, 22] },
+    { id: "ukmo_uk_deterministic_2km", fallback: "ukmo_seamless", label: "UK Met Office 2 km", note: "UKV, bis 48 h", weight: 1.8, hours: 48, box: [48, 62, -12, 5] },
+    { id: "knmi_harmonie_arome_netherlands", fallback: "knmi_seamless", label: "KNMI Harmonie NL", note: "2 km, bis 60 h", weight: 1.7, hours: 60, box: [49.5, 54, 2, 7.5] },
+    { id: "knmi_harmonie_arome_europe", label: "KNMI Harmonie Europa", note: "5,5 km, bis 60 h", weight: 1.3, hours: 60, box: [39, 70, -25, 40] },
+    { id: "dmi_harmonie_arome_europe", fallback: "dmi_seamless", label: "DMI Harmonie", note: "2 km, bis 60 h", weight: 1.7, hours: 60, box: [48, 66, -25, 20] },
+    // außerhalb Europas
+    { id: "gem_hrdps_continental", fallback: "gem_seamless", label: "GEM HRDPS", note: "Kanada, 2,5 km, bis 48 h", weight: 1.7, hours: 48, box: [35, 70, -150, -50] },
+    { id: "ncep_hrrr_conus", label: "HRRR", note: "USA, 3 km, bis 48 h", weight: 1.6, hours: 48, box: [21, 53, -135, -60] },
+    { id: "jma_msm", label: "JMA MSM", note: "Japan, 5 km, bis 78 h", weight: 1.6, hours: 78, box: [22, 48, 120, 150] },
+    { id: "kma_ldps", label: "KMA LDPS", note: "Korea, 1,5 km, bis 48 h", weight: 1.7, hours: 48, box: [32, 43, 122, 132] }
+  ];
+  const inBox = (b, lat, lon) => !b || (lat >= b[0] && lat <= b[1] && lon >= b[2] && lon <= b[3]);
+  // Modelle für einen Ort: ECMWF + ICON-EU (außerhalb Europas ICON Global) + Regionalmodelle, deren Gebiet den Ort enthält
+  function modelsFor(lat, lon) {
+    const eu = inBox(BASE_MODELS[1].box, lat, lon);
+    const base = BASE_MODELS.filter(m => m.id === "ecmwf_ifs025" || (m.id === "icon_eu" ? eu : !eu));
+    return base.concat(REGIONAL_MODELS.filter(m => inBox(m.box, lat, lon)).map(m => ({ ...m, regional: true })));
+  }
+  const MODELS = BASE_MODELS.concat(REGIONAL_MODELS);
   const SURFACE_VARS = ["cloud_cover", "cloud_cover_low", "cloud_cover_mid", "cloud_cover_high",
     "temperature_2m", "dew_point_2m", "wind_gusts_10m", "precipitation", "visibility"];
   const JET_VARS = ["wind_speed_200hPa", "wind_speed_250hPa", "wind_speed_300hPa"];
@@ -289,7 +319,7 @@
   }
 
   const api = {
-    MODELS, SURFACE_VARS, JET_VARS, TARGETS,
+    MODELS, BASE_MODELS, REGIONAL_MODELS, modelsFor, SURFACE_VARS, JET_VARS, TARGETS,
     sunAltitude, moonAltitude, moonIllumination,
     forecastUrl, parseModel, effectiveCloud, scoreHour, groupNights, scoreNight, describeNight, fmtH
   };

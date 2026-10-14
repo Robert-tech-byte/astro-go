@@ -9,7 +9,7 @@ Live: https://robert-tech-byte.github.io/astro-go/ (Nordlicht direkt: `#nordlich
 
 ## Daten
 
-- Wetter: [Open-Meteo](https://open-meteo.com/) (CC BY 4.0) mit MET Nordic, ICON-EU, ECMWF IFS, UK Met Office (ohne GFS, zu ungenau)
+- Wetter: [Open-Meteo](https://open-meteo.com/) (CC BY 4.0). Basis ECMWF IFS und ICON-EU (außerhalb Europas ICON Global), je nach Ort ergänzt um Regionalmodelle wie MET Nordic, ICON-D2, ICON-CH1/CH2, AROME France, ICON 2I, UKV, KNMI- und DMI-Harmonie. Kein GFS.
 - Weltraumwetter: [NOAA SWPC](https://www.swpc.noaa.gov/) (Kp-Vorhersage 3 Tage, Kp-Schätzung je Minute, OVATION-Oval, 27-Tage-Ausblick, Sonnenwind in Echtzeit vom aktiven L1-Satelliten) und [GFZ Potsdam](https://spaceweather.gfz.de/) (Kp- und Hp30-Vorhersage aus dem stündlichen Hpo-Modell, gemessener Kp und Hp30, CC BY 4.0; SWIFT-Ensemble als Reserve)
 - Sonne und Mond werden im Browser berechnet
 
