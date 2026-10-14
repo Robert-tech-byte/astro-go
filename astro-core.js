@@ -51,19 +51,20 @@
     { id: "icon_eu", label: "ICON-EU", note: "DWD, 7 km, bis 5 Tage", weight: 1.1, hours: 120, box: [29.5, 70.5, -23.5, 62.5] },
     { id: "dwd_icon_global", label: "ICON Global", note: "DWD, 11 km, bis 7 Tage", weight: 1.0, hours: 180, outsideOf: "icon_eu" }
   ];
+  // replaces: gröbere Modelle derselben Familie, die nicht mitzählen, solange dieses Modell für die Stunde Daten hat.
   // id: konkretes Modell (liefert außerhalb seines Gebiets keine Daten und fällt dann weg).
   // fallback: bestätigte "seamless"-Kennung, falls Open-Meteo die konkrete Kennung nicht kennt;
   // dann zählt das Modell nur innerhalb des Rechtecks (box) und seiner Reichweite (hours).
   const REGIONAL_MODELS = [
     { id: "metno_nordic", label: "MET Nordic", note: "1 km, bis 60 h", weight: 2.0, hours: 60, box: [53, 72, 0, 33] },
-    { id: "dwd_icon_d2", fallback: "icon_d2", label: "ICON-D2", note: "DWD, 2 km, bis 48 h", weight: 1.8, hours: 48, box: [43.2, 58.1, -3.9, 20.3] },
-    { id: "meteoswiss_icon_ch1", fallback: "meteoswiss_icon_seamless", label: "ICON-CH1", note: "MeteoSchweiz, 1 km, bis 33 h", weight: 1.4, hours: 33, box: [42.5, 50, 0, 17] },
-    { id: "meteoswiss_icon_ch2", label: "ICON-CH2", note: "MeteoSchweiz, 2 km, bis 120 h", weight: 1.3, hours: 120, box: [42.5, 50, 0, 17] },
-    { id: "meteofrance_arome_france_hd", label: "AROME France HD", note: "Météo-France, 1,5 km, bis 42 h", weight: 1.4, hours: 42, box: [37.5, 55.4, -12, 16] },
+    { id: "dwd_icon_d2", fallback: "icon_d2", label: "ICON-D2", note: "DWD, 2 km, bis 48 h", weight: 1.8, hours: 48, box: [43.2, 58.1, -3.9, 20.3], replaces: ["icon_eu", "dwd_icon_global"] },
+    { id: "meteoswiss_icon_ch1", fallback: "meteoswiss_icon_seamless", label: "ICON-CH1", note: "MeteoSchweiz, 1 km, bis 33 h", weight: 1.4, hours: 33, box: [42.5, 50, 0, 17], replaces: ["icon_eu", "dwd_icon_global", "meteoswiss_icon_ch2"] },
+    { id: "meteoswiss_icon_ch2", label: "ICON-CH2", note: "MeteoSchweiz, 2 km, bis 120 h", weight: 1.3, hours: 120, box: [42.5, 50, 0, 17], replaces: ["icon_eu", "dwd_icon_global"] },
+    { id: "meteofrance_arome_france_hd", label: "AROME France HD", note: "Météo-France, 1,5 km, bis 42 h", weight: 1.4, hours: 42, box: [37.5, 55.4, -12, 16], replaces: ["meteofrance_arome_france"] },
     { id: "meteofrance_arome_france", fallback: "meteofrance_seamless", label: "AROME France", note: "Météo-France, 2,5 km, bis 42 h", weight: 1.2, hours: 42, box: [37.5, 55.4, -12, 16] },
-    { id: "italia_meteo_arpae_icon_2i", label: "ICON 2I", note: "ItaliaMeteo, 2 km, bis 72 h", weight: 1.8, hours: 72, box: [34, 50, 3, 22] },
+    { id: "italia_meteo_arpae_icon_2i", label: "ICON 2I", note: "ItaliaMeteo, 2 km, bis 72 h", weight: 1.8, hours: 72, box: [34, 50, 3, 22], replaces: ["icon_eu", "dwd_icon_global"] },
     { id: "ukmo_uk_deterministic_2km", fallback: "ukmo_seamless", label: "UK Met Office 2 km", note: "UKV, bis 48 h", weight: 1.8, hours: 48, box: [48, 62, -12, 5] },
-    { id: "knmi_harmonie_arome_netherlands", fallback: "knmi_seamless", label: "KNMI Harmonie NL", note: "2 km, bis 60 h", weight: 1.7, hours: 60, box: [49.5, 54, 2, 7.5] },
+    { id: "knmi_harmonie_arome_netherlands", fallback: "knmi_seamless", label: "KNMI Harmonie NL", note: "2 km, bis 60 h", weight: 1.7, hours: 60, box: [49.5, 54, 2, 7.5], replaces: ["knmi_harmonie_arome_europe"] },
     { id: "knmi_harmonie_arome_europe", label: "KNMI Harmonie Europa", note: "5,5 km, bis 60 h", weight: 1.3, hours: 60, box: [39, 70, -25, 40] },
     { id: "dmi_harmonie_arome_europe", fallback: "dmi_seamless", label: "DMI Harmonie", note: "2 km, bis 60 h", weight: 1.7, hours: 60, box: [48, 66, -25, 20] },
     // außerhalb Europas
@@ -156,10 +157,17 @@
 
     const perModel = [];
     const clouds = [], Ts = [], Tds = [], gusts = [], precs = [], viss = [];
-    for (const { model, data } of models) {
-      const v = data.get(ms);
-      if (!v || v.cloud === null) continue;
-      if (leadH > model.hours) continue;
+    // Modelle mit Daten für diese Stunde (innerhalb ihrer Reichweite)
+    const avail = models.map(({ model, data }) => ({ model, v: data.get(ms) }))
+      .filter(x => x.v && x.v.cloud !== null && leadH <= x.model.hours);
+    // feinere Modelle ersetzen gröbere derselben Familie (z. B. ICON-D2 ersetzt ICON-EU)
+    const replaced = new Set();
+    avail.forEach(x => (x.model.replaces || []).forEach(id => replaced.add(id)));
+    for (const { model, v } of avail) {
+      if (replaced.has(model.id)) {
+        perModel.push({ id: model.id, label: model.label, cloud: v.cloud, low: v.low, mid: v.mid, high: v.high, excluded: true });
+        continue;
+      }
       perModel.push({ id: model.id, label: model.label, cloud: v.cloud, low: v.low, mid: v.mid, high: v.high });
       clouds.push({ v: v.cloud, w: model.weight });
       if (v.T !== null) Ts.push({ v: v.T, w: model.weight });
@@ -173,7 +181,7 @@
 
     const T = weightedStats(Ts), Td = weightedStats(Tds), G = weightedStats(gusts), P = weightedStats(precs), V = weightedStats(viss);
     const layer = name => {
-      const arr = perModel.filter(m => m[name] !== null && m[name] !== undefined);
+      const arr = perModel.filter(m => !m.excluded && m[name] !== null && m[name] !== undefined);
       return arr.length ? arr.reduce((a, m) => a + m[name], 0) / arr.length : null;
     };
 

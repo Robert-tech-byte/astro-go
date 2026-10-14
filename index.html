@@ -281,7 +281,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     <p>Jede Stunde mit Sonne unter −6° bekommt eine Qualität zwischen 0 und 1. Sie ist das Produkt mehrerer Faktoren; die Note ist <code>1 + 9 × Qualität</code>, gerundet.</p>
     <ul>
       <li><b>Wolken:</b> tiefe und mittlere Wolken zählen voll, hohe zu 70 %. Die Werte der Modelle werden gewichtet gemittelt. Liefert ein Modell keine Schichten, zählt seine Gesamtbewölkung. Faktor <code>(1 − Bedeckung)^1,5</code>.</li>
-      <li><b>Modelle je Ort:</b> Basis sind überall ECMWF (Gewicht 1,2) und ICON-EU (1,1), außerhalb Europas ICON Global (1,0). Dazu kommen die hochauflösenden Regionalmodelle, deren Gebiet den Ort abdeckt, z. B. MET Nordic, ICON-D2, AROME, ICON-CH, ICON 2I, UKV oder Harmonie (Gewicht 1,5–2,0). Sie zählen nur innerhalb ihrer Reichweite (meist 42–72 Stunden), danach tragen die Basismodelle allein.</li>
+      <li><b>Modelle je Ort:</b> Basis sind überall ECMWF (Gewicht 1,2) und ICON-EU (1,1), außerhalb Europas ICON Global (1,0). Dazu kommen die hochauflösenden Regionalmodelle, deren Gebiet den Ort abdeckt, z. B. MET Nordic, ICON-D2, AROME, ICON-CH, ICON 2I, UKV oder Harmonie (Gewicht 1,5–2,0). Sie zählen nur innerhalb ihrer Reichweite (meist 33–72 Stunden), danach tragen die Basismodelle allein. Solange ein feineres Modell derselben Familie Daten hat, zählt das gröbere nicht mit: ICON-D2, ICON-CH und ICON 2I ersetzen ICON-EU, ICON-CH1 ersetzt ICON-CH2, AROME HD ersetzt AROME France, KNMI NL ersetzt KNMI Europa. ECMWF bleibt immer als unabhängige zweite Meinung dabei. In der Stundentabelle sind ersetzte Modelle ausgegraut.</li>
       <li><b>Dunkelheit:</b> astronomische Nacht 1,0; astronomische Dämmerung 0,7–1,0; nautische Dämmerung 0,35–0,7.</li>
       <li><b>Mond:</b> Beleuchtung × Höhe über dem Horizont. Bei Nebeln mit Duo-Band-Filter zählt der Mond nur zu 35 %, bei Galaxien und Haufen zu 80 %.</li>
       <li><b>Niederschlag, Nebel, Tau, Böen:</b> Abzüge bei Regen, Sichtweite unter 5 km, Taupunktabstand unter 2 °C und Böen über 20 km/h.</li>
@@ -532,8 +532,8 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       h.vis !== null ? fact("Sichtweite", fmtNum(h.vis / 1000, 1) + " km") : null,
       h.jet !== null ? fact("Jetstream", fmtNum(h.jet) + " km/h") : null
     ]);
-    const rows = h.perModel.map(m => el("tr", null, [
-      el("td", { text: m.label }),
+    const rows = h.perModel.map(m => el("tr", m.excluded ? { style: "opacity:.45", title: "Ersetzt durch ein feineres Modell derselben Familie, zählt nicht mit" } : null, [
+      el("td", { text: m.label + (m.excluded ? " (ersetzt)" : "") }),
       el("td", { text: fmtNum(m.low) }), el("td", { text: fmtNum(m.mid) }), el("td", { text: fmtNum(m.high) }),
       el("td", { text: fmtNum(m.cloud) })
     ]));
