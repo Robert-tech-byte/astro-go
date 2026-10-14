@@ -11,27 +11,45 @@ jobs:
       W: https://astro-go.robert-waetjen.workers.dev
       ORIGIN: https://robert-tech-byte.github.io
     steps:
+      - name: erreichbar
+        if: always()
+        run: |
+          curl -sS -o /dev/null -w '%{http_code}\n' "$W/"
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$W/")" -lt 500
+      - name: ist noch Hello World
+        if: always()
+        run: |
+          curl -sS "$W/" | grep -qi "hello world"
       - name: status
+        if: always()
         run: |
-          curl -fsS -H "Origin: $ORIGIN" "$W/status" | tee /dev/stderr | grep -q '"ok":true'
-      - name: hpo-kp
+          curl -fsS -H "Origin: $ORIGIN" "$W/status" | grep -q '"ok":true'
+      - name: hpo-kp mit Browser-Erlaubnis
+        if: always()
         run: |
-          curl -fsS -D h.txt -H "Origin: $ORIGIN" "$W/hpo-kp" | grep -q MEDIAN && grep -qi "access-control-allow-origin: $ORIGIN" h.txt
+          curl -fsS -D h.txt -H "Origin: $ORIGIN" "$W/hpo-kp" | grep -q MEDIAN
+          grep -qi "access-control-allow-origin: $ORIGIN" h.txt
       - name: hpo-hp30
+        if: always()
         run: |
           curl -fsS -H "Origin: $ORIGIN" "$W/hpo-hp30" | grep -q MEDIAN
       - name: hpo-hp60
+        if: always()
         run: |
           curl -fsS -H "Origin: $ORIGIN" "$W/hpo-hp60" | grep -q MEDIAN
       - name: kp
+        if: always()
         run: |
           curl -fsS -H "Origin: $ORIGIN" "$W/kp" | grep -q '"Kp"'
       - name: hp30
+        if: always()
         run: |
           curl -fsS -H "Origin: $ORIGIN" "$W/hp30" | grep -q '"Hp30"'
       - name: swift
+        if: always()
         run: |
           curl -fsS -H "Origin: $ORIGIN" "$W/swift" | head -1 | grep -q "Time (UTC)"
       - name: fremde Ziele gesperrt
+        if: always()
         run: |
           test "$(curl -s -o /dev/null -w '%{http_code}' "$W/evil")" = "404"
