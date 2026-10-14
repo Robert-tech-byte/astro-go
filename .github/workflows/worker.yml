@@ -1,0 +1,28 @@
+# Veröffentlicht den Cloudflare-Worker aus cloudflare/, sobald sich dort etwas ändert.
+# Läuft nur, wenn im Repo die Geheimnisse CLOUDFLARE_API_TOKEN und CLOUDFLARE_ACCOUNT_ID hinterlegt sind.
+name: Cloudflare-Worker veröffentlichen
+
+on:
+  push:
+    branches: [main]
+    paths: ["cloudflare/**"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Geheimnisse vorhanden?
+        id: check
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -n "$TOKEN" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "Kein CLOUDFLARE_API_TOKEN hinterlegt, überspringe."; fi
+      - name: Worker veröffentlichen
+        if: steps.check.outputs.ok == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: cloudflare
