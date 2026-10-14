@@ -50,7 +50,6 @@ jobs:
           get "https://spaceweather.gfz.de/fileadmin/Kp-Forecast/CSV/kp_product_file_FORECAST_PAGER_SWIFT_LAST.csv" _site/data/gfz_swift.csv
           get "https://kp.gfz.de/app/json/?start=${START2D}&end=${NOW}&index=Kp"   _site/data/gfz_kp.json
           get "https://kp.gfz.de/app/json/?start=${START24H}&end=${NOW}&index=Hp30" _site/data/gfz_hp30.json
-          get "https://kp.gfz.de/app/json/?start=${START24H}&end=${NOW}&index=Hp60" _site/data/gfz_hp60.json
           printf '{"fetched":"%s"}\n' "$NOW" > _site/data/meta.json
           ls -la _site/data
 

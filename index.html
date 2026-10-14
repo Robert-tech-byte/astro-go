@@ -694,7 +694,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       { label: "GFZ Hp60-Vorhersage", note: stale(R.hpoHp60, fresh.hp60) || "stündlich, 3 Tage", ok: fresh.hp60 },
       { label: "GFZ Hp30-Vorhersage", note: stale(R.hpoHp30, fresh.hp30) || "halbstündlich, 3 Tage", ok: fresh.hp30 },
       { label: "GFZ Kp-Vorhersage", note: stale(R.hpoKp, fresh.kp) || "Hpo-Modell, 3 h", ok: fresh.kp },
-      { label: "GFZ Hp30/Hp60 gemessen", note: "letzte 24 h", ok: R.hp30m.length > 0 || R.hp60m.length > 0 },
+      { label: "GFZ Hp30 gemessen", note: "letzte 24 h", ok: R.hp30m.length > 0 },
       { label: "GFZ Kp gemessen", note: "letzte 2 Tage", ok: R.gfzK.length > 0 },
       { label: "GFZ SWIFT-Ensemble", note: stale(R.swift, fresh.swift) || (fresh.kp ? "Reserve" : "genutzt"), ok: fresh.swift },
       { label: "NOAA Kp-Vorhersage", note: "3 Tage, Vergleich", ok: R.kpF.length > 0 },
