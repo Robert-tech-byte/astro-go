@@ -654,15 +654,24 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     const from2d = iso(now - 2 * 86400000), from24 = iso(now - 86400000), to = iso(now);
     // GFZ: erst die Kopie neben der Seite, dann direkt beim GFZ (falls der Server das irgendwann erlaubt)
     const bust = "?t=" + Math.floor(now / 300000);
-    const both = (localUrl, remoteUrl, fn) => fn(localUrl + bust).catch(() => fn(remoteUrl));
-    const [kpF, kpN, o27, ov, mag, wind, hpoKp, hpoHp30, hpoHp60, swift, gfzK, gfzH30, gfzH60, meta] = await Promise.all([
+    // GFZ: zuerst über den Cloudflare-Worker (live), dann die GitHub-Kopie, zuletzt direkt beim GFZ
+    const via = {};
+    const chain = (key, remoteUrl, fn) => {
+      const tries = [];
+      if (U.worker && U.workerPaths[key]) tries.push(["Cloudflare", U.worker.replace(/\/$/, "") + U.workerPaths[key]]);
+      if (L[key]) tries.push(["GitHub-Kopie", L[key] + bust]);
+      if (remoteUrl) tries.push(["GFZ direkt", remoteUrl]);
+      return tries.reduce((p, [name, url]) => p.catch(() => fn(url).then(v => { via[key] = name; return v; })), Promise.reject(new Error("start")));
+    };
+    const [kpF, kpN, o27, ov, mag, wind, hpoKp, hpoHp30, hpoHp60, swift, gfzK, gfzH30, meta] = await Promise.all([
       settle(getJSON(U.kpForecast)), settle(getJSON(U.kpNow)), settle(getText(U.outlook27)),
       settle(getJSON(U.ovation)), settle(getJSON(U.mag)), settle(getJSON(U.wind)),
-      settle(both(L.gfzHpoKp, U.gfzHpoKp, getJSON)), settle(both(L.gfzHpoHp30, U.gfzHpoHp30, getJSON)),
-      settle(both(L.gfzHpoHp60, U.gfzHpoHp60, getJSON)), settle(both(L.gfzForecast, U.gfzForecast, getText)),
-      settle(both(L.gfzKp, U.gfzKp(from2d, to), getJSON)), settle(both(L.gfzHp30, U.gfzHp30(from24, to), getJSON)),
-      settle(both(L.gfzHp60, U.gfzHp60(from24, to), getJSON)), settle(getJSON(L.meta + bust))
+      settle(chain("gfzHpoKp", U.gfzHpoKp, getJSON)), settle(chain("gfzHpoHp30", U.gfzHpoHp30, getJSON)),
+      settle(chain("gfzHpoHp60", U.gfzHpoHp60, getJSON)), settle(chain("gfzForecast", U.gfzForecast, getText)),
+      settle(chain("gfzKp", U.gfzKp(from2d, to), getJSON)), settle(chain("gfzHp30", U.gfzHp30(from24, to), getJSON)),
+      settle(getJSON(L.meta + bust))
     ]);
+    const gfzH60 = { ok: false };
     const safe = (r, fn) => { if (!r.ok) return null; try { return fn(r.v); } catch (e) { return null; } };
     const R = {
       kpF: safe(kpF, N.parseKpForecast) || [],
@@ -680,6 +689,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       hp60m: safe(gfzH60, N.parseGfzHp60) || []
     };
     R.gfzFetched = meta.ok && meta.v && meta.v.fetched ? N.toMs(meta.v.fetched) : null;
+    R.gfzVia = via;
     const fresh = {
       kp: N.isFresh(R.hpoKp, now, 3 * HOUR),
       hp30: N.isFresh(R.hpoHp30, now, HOUR / 2),
@@ -1092,10 +1102,14 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     const items = aur.raw.status.map(s => el("span", { class: "model" + (s.ok ? "" : " off"), title: s.ok ? s.note : "Nicht erreichbar oder nicht genutzt" }, [
       s.label + " ", el("small", { text: s.ok ? s.note : (s.note.includes("veraltet") ? s.note : "nicht erreichbar") })
     ]));
-    if (aur.raw.gfzFetched) {
-      const age = Math.round((Date.now() - aur.raw.gfzFetched) / 60000);
-      items.push(el("span", { class: "hint", style: "flex-basis:100%", text: `GFZ-Daten zuletzt abgeholt vor ${age} min (${hhmm(aur.raw.gfzFetched)} Uhr).` }));
-    }
+    const ways = [...new Set(Object.values(aur.raw.gfzVia || {}))];
+    let line;
+    if (ways.includes("Cloudflare") && ways.length === 1) line = "GFZ-Daten live über den Cloudflare-Zwischendienst (höchstens 5 Minuten zwischengespeichert).";
+    else if (ways.length) {
+      const age = aur.raw.gfzFetched ? Math.round((Date.now() - aur.raw.gfzFetched) / 60000) : null;
+      line = `GFZ-Daten über: ${ways.join(", ")}.` + (ways.includes("GitHub-Kopie") && age !== null ? ` Die GitHub-Kopie ist ${age} min alt (${hhmm(aur.raw.gfzFetched)} Uhr).` : "");
+    } else line = "GFZ-Daten gerade nicht erreichbar.";
+    items.push(el("span", { class: "hint", style: "flex-basis:100%", text: line }));
     $("aSrc").replaceChildren(...items);
   }
 

@@ -20,3 +20,11 @@ Live: https://robert-tech-byte.github.io/astro-go/ (Nordlicht direkt: `#nordlich
 - `aurora-core.js` – Nordlicht-Bewertung
 
 Beide Kern-Dateien laufen auch in Node (`require`) und lassen sich so mit Testdaten prüfen.
+
+## GFZ-Daten über Cloudflare
+
+Die GFZ-Server erlauben keinen Abruf direkt aus dem Browser. `cloudflare/worker.js`
+ist ein kleiner Cloudflare-Worker, der nur die benötigten GFZ-Dateien weiterreicht
+(5 Minuten Zwischenspeicher, Browser-Erlaubnis nur für robert-tech-byte.github.io).
+Seine Adresse steht in `aurora-core.js` unter `URLS.worker`. Fällt er aus, nutzt die
+Seite die stündliche Kopie aus dem GitHub-Ablauf.

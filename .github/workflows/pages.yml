@@ -1,4 +1,4 @@
-# Veröffentlicht die Seite und holt dabei stündlich frische GFZ-Daten.
+# Veröffentlicht die Seite und legt GFZ-Daten als Reserve-Kopie daneben.
 # Grund: Die GFZ-Server erlauben keinen Abruf direkt aus dem Browser (CORS),
 # deshalb legt dieser Ablauf die Daten als eigene Dateien neben die Seite.
 name: Seite mit GFZ-Daten veröffentlichen
@@ -7,7 +7,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "*/10 * * * *"   # alle 10 Minuten; GitHub lässt geplante Läufe oft ausfallen
+    - cron: "17 * * * *"   # stündlich als Reserve; live kommen die Daten über den Cloudflare-Worker
   workflow_dispatch:
 
 permissions:
