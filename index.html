@@ -326,8 +326,8 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       <p>Die Note ist <code>1 + 9 × Aktivität × Himmel</code>, gerundet. Beide Teile liegen zwischen 0 und 1.</p>
       <ul>
         <li><b>Aktivität:</b> Aus dem Kp-Wert und der magnetischen Breite des Orts. Nach der NOAA-Faustregel liegt der Südrand des Ovals bei Kp 0 auf 66,5° magnetischer Breite und rückt je Kp-Stufe rund 2° nach Süden. Daraus ergeben sich zwei Schwellen: „tief am Nordhorizont“ und „über dir“.</li>
-        <li><b>Jetzt:</b> Mittel aus aktuellem Kp (NOAA-Schätzung) und einem Kp-Wert, der grob aus Bz und Geschwindigkeit der letzten 30 Minuten geschätzt wird. Dazu kommt die NOAA-OVATION-Vorhersage des Ovals für deinen Ort.</li>
-        <li><b>Nächste Nächte:</b> Kp-Vorhersage von NOAA und GFZ (Median des Ensembles), gemittelt, je 3 Stunden. Die Nachtnote ist das Mittel der besten zwei aufeinanderfolgenden Stunden.</li>
+        <li><b>Jetzt:</b> Mittel aus drei Kp-Schätzungen: NOAA (aktueller Kp, minütlich), GFZ-Hp30-Vorhersage für die nächste Stunde (halbstündlicher Index auf der Kp-Skala) und ein Wert, der grob aus Bz und Geschwindigkeit der letzten 30 Minuten geschätzt wird. Dazu kommt die NOAA-OVATION-Vorhersage des Ovals für deinen Ort.</li>
+        <li><b>Nächste Nächte:</b> Kp-Vorhersage von NOAA und GFZ, gemittelt, je 3 Stunden. GFZ kommt aus dem stündlich aktualisierten Hpo-Modell (Median; die Linie im Diagramm reicht bis zum Maximum). Ist es nicht verfügbar, springt das ältere SWIFT-Ensemble ein, sofern es aktuell ist. Die Nachtnote ist das Mittel der besten zwei aufeinanderfolgenden Stunden.</li>
         <li><b>Himmel:</b> Dunkelheit (ab Sonne unter −12° voll, in der nautischen Dämmerung teilweise), Bewölkung aus den Wettermodellen der Astrofoto-Ansicht und Mond (höchstens 25 % Abzug, helles Nordlicht setzt sich gegen den Mond durch).</li>
         <li><b>27 Tage:</b> nur Aktivität × Dunkelheit × Mond, Wetter ist so weit im Voraus nicht vorhersagbar.</li>
       </ul>
@@ -614,10 +614,12 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     const now = Date.now();
     const iso = ms => new Date(ms).toISOString().slice(0, 19) + "Z";
     const U = N.URLS;
-    const [kpF, kpN, o27, ov, mag, wind, gfzF, gfzK] = await Promise.all([
+    const from = iso(now - 2 * 86400000), to = iso(now);
+    const [kpF, kpN, o27, ov, mag, wind, hpoKp, hpoHp30, swift, gfzK, gfzH] = await Promise.all([
       settle(getJSON(U.kpForecast)), settle(getJSON(U.kpNow)), settle(getText(U.outlook27)),
       settle(getJSON(U.ovation)), settle(getJSON(U.mag)), settle(getJSON(U.wind)),
-      settle(getText(U.gfzForecast)), settle(getJSON(U.gfzKp(iso(now - 2 * 86400000), iso(now))))
+      settle(getJSON(U.gfzHpoKp)), settle(getJSON(U.gfzHpoHp30)), settle(getText(U.gfzForecast)),
+      settle(getJSON(U.gfzKp(from, to))), settle(getJSON(U.gfzHp30(iso(now - 6 * 3600000), to)))
     ]);
     const safe = (r, fn) => { if (!r.ok) return null; try { return fn(r.v); } catch (e) { return null; } };
     const R = {
@@ -627,18 +629,32 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       ovJson: ov.ok && ov.v && Array.isArray(ov.v.coordinates) ? ov.v : null,
       mag: safe(mag, N.parseMag) || [],
       wind: safe(wind, N.parseWind) || [],
-      gfzF: safe(gfzF, N.parseGfzCsv) || [],
-      gfzK: safe(gfzK, N.parseGfzKp) || []
+      hpoKp: safe(hpoKp, N.parseHpo) || [],
+      hpoHp30: safe(hpoHp30, N.parseHpo) || [],
+      swift: safe(swift, N.parseGfzCsv) || [],
+      gfzK: safe(gfzK, N.parseGfzKp) || [],
+      gfzH: safe(gfzH, N.parseGfzHp30) || []
     };
-    R.gfzFresh = R.gfzF.length > 0 && R.gfzF.some(r => r.ms <= now && r.ms + 3 * 3600000 > now) && R.gfzF[R.gfzF.length - 1].ms > now + 12 * 3600000;
+    // GFZ-Kp-Vorhersage: bevorzugt das stündlich aktualisierte Hpo-Modell, sonst das SWIFT-Ensemble, wenn es frisch ist
+    const hpoFresh = N.isFresh(R.hpoKp, now, 3 * 3600000), swiftFresh = N.isFresh(R.swift, now, 3 * 3600000);
+    R.gfzF = hpoFresh ? R.hpoKp : (swiftFresh ? R.swift : []);
+    R.gfzFresh = hpoFresh || swiftFresh;
+    R.gfzSrc = hpoFresh ? "Hpo-Modell" : (swiftFresh ? "SWIFT-Ensemble" : null);
+    R.hp30Fresh = N.isFresh(R.hpoHp30, now, 1800000);
+    const lastH = R.gfzH.length ? R.gfzH[R.gfzH.length - 1] : null;
+    R.hp30Now = lastH && now - lastH.ms < 3 * 3600000 ? lastH : null;
+    const stale = (arr, fresh) => arr.length && !fresh ? "veraltet, nicht genutzt" : null;
     R.status = [
       { label: "NOAA Kp-Vorhersage", note: "3 Tage", ok: R.kpF.length > 0 },
       { label: "NOAA Kp jetzt", note: "Schätzung je Minute", ok: !!R.kpNow },
       { label: "NOAA OVATION", note: "Oval, 30–90 min", ok: !!R.ovJson },
       { label: "NOAA 27 Tage", note: "Ausblick", ok: R.o27.length > 0 },
       { label: "Sonnenwind L1", note: R.mag.length && R.mag[R.mag.length - 1].source ? R.mag[R.mag.length - 1].source : "Satellit", ok: R.mag.length > 0 && R.wind.length > 0 },
-      { label: "GFZ Kp-Vorhersage", note: R.gfzF.length && !R.gfzFresh ? "veraltet, nicht genutzt" : "Ensemble, 3 Tage", ok: R.gfzFresh },
-      { label: "GFZ Kp gemessen", note: "letzte 2 Tage", ok: R.gfzK.length > 0 }
+      { label: "GFZ Kp-Vorhersage", note: stale(R.hpoKp, hpoFresh) || "Hpo-Modell, stündlich", ok: hpoFresh },
+      { label: "GFZ Hp30-Vorhersage", note: stale(R.hpoHp30, R.hp30Fresh) || "30 min, 3 Tage", ok: R.hp30Fresh },
+      { label: "GFZ Hp30 gemessen", note: R.hp30Now ? "halbstündlich" : "keine aktuellen Werte", ok: !!R.hp30Now },
+      { label: "GFZ Kp gemessen", note: "letzte 2 Tage", ok: R.gfzK.length > 0 },
+      { label: "GFZ SWIFT-Ensemble", note: stale(R.swift, swiftFresh) || (hpoFresh ? "Reserve" : "genutzt"), ok: swiftFresh }
     ];
     aur.raw = R;
     aur.lastLoad = Date.now();
@@ -659,7 +675,11 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     const slotNow = R.kpF.find(x => now >= x.ms && now < x.ms + 3 * 3600000);
     const kpNow = R.kpNow ? R.kpNow.kp : (slotNow ? slotNow.kp : null);
     const kpSw = sw && sw.dataAgeMin < 60 ? sw.kpSw : null;
-    const kpShort = kpNow !== null && kpSw !== null ? (kpNow + kpSw) / 2 : (kpNow ?? kpSw);
+    // GFZ-Hp30-Vorhersage für die nächste Stunde (Hp30 ist auf der Kp-Skala, kann aber über 9 gehen)
+    const hp30Next = R.hp30Fresh ? R.hpoHp30.filter(r => r.ms + 1800000 > now && r.ms < now + 3600000).map(r => Math.min(9, r.median)) : [];
+    const hp30F = hp30Next.length ? hp30Next.reduce((a, b) => a + b, 0) / hp30Next.length : null;
+    const shortVals = [kpNow, kpSw, hp30F].filter(v => v !== null && v !== undefined);
+    const kpShort = shortVals.length ? shortVals.reduce((a, b) => a + b, 0) / shortVals.length : null;
     const actKp = N.activityFromKp(kpShort, need);
     const actOv = ov ? Math.min(1, ov.value / 40) : null;
     const actNow = actKp !== null && actOv !== null ? 0.5 * actKp + 0.5 * actOv : (actKp ?? actOv ?? 0);
@@ -708,7 +728,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       return { ...d, dark, act, score: N.score(act * dark * moonF), illum: A.moonIllumination(mid) };
     });
 
-    return { now, mlat, need, sw, ov, kpNow, kpSw, kpShort, actKp, actOv, actNow, sunNow, moonNow, illNow, cloudNow, skyNow, nowScore: N.score(actNow * skyNow.q), actScore: N.score(actNow), hours, nights, days };
+    return { now, mlat, need, sw, ov, kpNow, kpSw, hp30F, hp30Now: R.hp30Now, kpShort, actKp, actOv, actNow, sunNow, moonNow, illNow, cloudNow, skyNow, nowScore: N.score(actNow * skyNow.q), actScore: N.score(actNow), hours, nights, days };
   }
 
   function reach(kp, need) {
@@ -731,8 +751,9 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       ["dark", avgOf(h => h.sky.dark), "Zur besten Zeit nur Dämmerung."],
       ["moon", avgOf(h => h.sky.moon), `Heller Mond (${Math.round(b.illum * 100)} %).`]
     ].sort((p, q) => p[1] - q[1])[0];
-    if (lim[1] < 0.75) parts.push(lim[2]);
-    parts.push(`Beste Zeit um ${hhmm(b.ms)} Uhr${lim[0] !== "cloud" ? `, ${Math.round(cl)} % Wolken` : ""}.`);
+    const named = lim[1] < 0.75;
+    if (named) parts.push(lim[2]);
+    parts.push(`Beste Zeit um ${hhmm(b.ms)} Uhr${named && lim[0] === "cloud" ? "" : `, ${Math.round(cl)} % Wolken`}.`);
     return parts.join(" ");
   }
 
@@ -763,7 +784,10 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       why.push(`Sonnenwind: Bz ${fmtNum(M.sw.bz30, 1)} nT (${N.bzWords(M.sw.bz30)}), ${fmtNum(M.sw.v30 ?? M.sw.speed)} km/s (${N.speedWords(M.sw.v30 ?? M.sw.speed)}), Tendenz ${M.sw.trend}.`);
     } else why.push("Keine aktuellen Sonnenwind-Daten.");
     const bits = [];
-    if (M.kpNow !== null) bits.push(`Kp jetzt ${kpTxt(M.kpNow)}: ${reach(M.kpShort, M.need)}`);
+    if (M.kpShort !== null) {
+      const src = [M.kpNow !== null ? `NOAA ${kpTxt(M.kpNow)}` : null, M.hp30F !== null ? `GFZ Hp30 ${kpTxt(M.hp30F)}` : null, M.kpSw !== null ? `Sonnenwind ${kpTxt(M.kpSw)}` : null].filter(Boolean);
+      bits.push(`Kp-Schätzung ${kpTxt(M.kpShort)} (${src.join(", ")}): ${reach(M.kpShort, M.need)}`);
+    }
     if (M.ov) bits.push(`Oval-Vorhersage für deinen Ort ${Math.round(M.ov.value)} %`);
     if (bits.length) why.push(bits.join("; ") + ".");
     const sky = M.skyNow.dark === 0 ? "Sonne noch zu hoch" : (M.cloudNow === null ? "Bewölkung unbekannt" : `${Math.round(M.cloudNow)} % Wolken`);
@@ -772,6 +796,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
 
     const pills = [el("span", { class: "pill", text: `Aktivität ${M.actScore}/10` })];
     if (M.sw && M.sw.source) pills.push(el("span", { class: "pill", text: `Satellit ${M.sw.source}` }));
+    if (M.hp30Now) pills.push(el("span", { class: "pill", text: `GFZ Hp30 ${kpTxt(M.hp30Now.kp)} um ${hhmm(M.hp30Now.ms)}` }));
     if (M.sw) pills.push(el("span", { class: "pill" + (M.sw.dataAgeMin > 30 ? " conf-niedrig" : ""), text: `Messung vor ${M.sw.dataAgeMin} min` }));
     pills.push(el("span", { class: "pill", text: `Mond ${Math.round(M.illNow * 100)} %${M.moonNow > 0 ? ", am Himmel" : ""}` }));
     $("aHeroPills").replaceChildren(...pills);
@@ -878,7 +903,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       el("span", null, [el("i", { style: "background:var(--aurora)" }), "Kp über der Schwelle „über dir“"]),
       el("span", null, [el("i", { style: "background:var(--aurora-dim)" }), "über „Horizont“"]),
       el("span", null, [el("i", { style: "background:var(--line)" }), "darunter"]),
-      R.gfzFresh ? el("span", null, [el("i", { style: "background:var(--fg);border-radius:50%;width:8px;height:8px" }), "GFZ-Median mit Spanne"]) : null,
+      R.gfzFresh ? el("span", null, [el("i", { style: "background:var(--fg);border-radius:50%;width:8px;height:8px" }), R.gfzSrc === "Hpo-Modell" ? "GFZ-Median, Linie bis Maximum" : "GFZ-Median mit Spanne"]) : null,
       el("span", null, [el("i", { style: "background:var(--surface-2);border:1px solid var(--line)" }), "Nacht"])
     );
     const W = Math.max(300, svg.clientWidth || 600), H = 210;
@@ -912,7 +937,8 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     slots.forEach(s => {
       if (!s.g || s.past || s.g.median === null) return;
       const cx = x(s.t) + slotW / 2;
-      if (s.g.q1 !== null && s.g.q3 !== null) svg.appendChild(svgEl("line", { x1: cx, x2: cx, y1: y(s.g.q1), y2: y(s.g.q3) }, "stroke:var(--fg);stroke-width:2;stroke-linecap:round"));
+      const lo = s.g.q1 ?? s.g.median, hi = s.g.q3 ?? s.g.max;
+      if (hi !== null && hi !== undefined) svg.appendChild(svgEl("line", { x1: cx, x2: cx, y1: y(lo), y2: y(hi) }, "stroke:var(--fg);stroke-width:2;stroke-linecap:round"));
       svg.appendChild(svgEl("circle", { cx, cy: y(s.g.median), r: 3.5 }, "fill:var(--fg);stroke:var(--surface);stroke-width:2"));
     });
     // Schwellen
@@ -945,7 +971,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       if (!s) return;
       hl.setAttribute("x", x(s.t)); hl.style.display = "";
       const parts = [`${dayName(s.t)} ${hhmm(s.t)}–${hhmm(s.t + 10800000)}`, `Kp ${kpTxt(s.val)} (${s.src})`];
-      if (!s.past && s.g && s.g.median !== null) parts.push(`GFZ ${kpTxt(s.g.median)} (${kpTxt(s.g.q1)}–${kpTxt(s.g.q3)})`);
+      if (!s.past && s.g && s.g.median !== null) parts.push(s.g.q1 !== null ? `GFZ ${kpTxt(s.g.median)} (${kpTxt(s.g.q1)}–${kpTxt(s.g.q3)})` : `GFZ ${kpTxt(s.g.median)} (max. ${kpTxt(s.g.max)})`);
       if (s.cloud !== null) parts.push(`${Math.round(s.cloud)} % Wolken`);
       parts.push(s.night ? "dunkel" : "hell");
       $("kpReadout").textContent = parts.join(" · ");

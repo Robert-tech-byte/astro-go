@@ -12,8 +12,13 @@
     mag: "https://services.swpc.noaa.gov/json/rtsw/rtsw_mag_1m.json",
     wind: "https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json",
     // GFZ Potsdam
+    // Neues Hpo-Vorhersagemodell (stündlich aktualisiert, Kp und Hp30, Median und Maximum)
+    gfzHpoKp: "https://isdc-data.gfz.de/geomagnetism/HpoForecast/v0102/output/Hpo/json/hpo_forecast_mean_bars_Kp.json",
+    gfzHpoHp30: "https://isdc-data.gfz.de/geomagnetism/HpoForecast/v0102/output/Hpo/json/hpo_forecast_mean_bars_Hp30.json",
+    // älteres SWIFT/PAGER-Ensemble (nur Ersatz, wenn das Hpo-Modell fehlt)
     gfzForecast: "https://spaceweather.gfz.de/fileadmin/Kp-Forecast/CSV/kp_product_file_FORECAST_PAGER_SWIFT_LAST.csv",
-    gfzKp: (startIso, endIso) => `https://kp.gfz.de/app/json/?start=${startIso}&end=${endIso}&index=Kp`
+    gfzKp: (startIso, endIso) => `https://kp.gfz.de/app/json/?start=${startIso}&end=${endIso}&index=Kp`,
+    gfzHp30: (startIso, endIso) => `https://kp.gfz.de/app/json/?start=${startIso}&end=${endIso}&index=Hp30`
   };
 
   const L1_KM = 1.5e6; // Abstand L1–Erde, grob
@@ -99,9 +104,24 @@
     }).filter(Boolean);
   }
 
-  function parseGfzKp(json) {
-    if (!json || !json.datetime || !json.Kp) return [];
-    return json.datetime.map((t, i) => ({ ms: toMs(t), kp: num(json.Kp[i]), status: json.status ? json.status[i] : null })).filter(r => isFinite(r.ms) && r.kp !== null);
+  // kp.gfz.de-Webservice: {datetime:[…], Kp|Hp30:[…], status:[…]}
+  function parseGfzIndex(json, key) {
+    if (!json || !json.datetime || !json[key]) return [];
+    return json.datetime.map((t, i) => ({ ms: toMs(t), kp: num(json[key][i]), status: json.status ? json.status[i] : null })).filter(r => isFinite(r.ms) && r.kp !== null);
+  }
+  const parseGfzKp = j => parseGfzIndex(j, "Kp");
+  const parseGfzHp30 = j => parseGfzIndex(j, "Hp30");
+
+  // Hpo-Vorhersage: {"MEDIAN": {"2026-10-14T09:00:00.000": 4.33, …}, "MAX": {…}}, Zeiten in UTC
+  function parseHpo(json) {
+    if (!json || !json.MEDIAN) return [];
+    return Object.entries(json.MEDIAN).map(([t, v]) => ({
+      ms: toMs(t), median: num(v), max: json.MAX ? num(json.MAX[t]) : null, min: null, q1: null, q3: null
+    })).filter(r => isFinite(r.ms) && r.median !== null).sort((a, b) => a.ms - b.ms);
+  }
+  // Frisch = deckt jetzt ab und reicht mindestens 12 h in die Zukunft
+  function isFresh(arr, nowMs, stepMs) {
+    return arr.length > 0 && arr.some(r => r.ms <= nowMs && r.ms + stepMs > nowMs) && arr[arr.length - 1].ms > nowMs + 12 * 3600000;
   }
 
   // 27-Tage-Ausblick: "2026 Oct 13     140          8          3"
@@ -226,7 +246,7 @@
 
   const api = {
     URLS, toMs, rows, magLat, kpNeeded, activityFromKp,
-    parseKpForecast, parseKpNow, parseGfzCsv, parseGfzKp, parse27, parseMag, parseWind, ovationAt,
+    parseKpForecast, parseKpNow, parseGfzCsv, parseGfzKp, parseGfzHp30, parseHpo, isFresh, parse27, parseMag, parseWind, ovationAt,
     solarWindSummary, bzWords, speedWords, darkFactor, skyFactor, kpAt, score
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
