@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<title>Astro-Go Seestar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: eine Spalte wie ein Beobachtungsprotokoll – Nachtnote oben, darunter Nächte, Stundenliste, Modelle, Rechenweg. */
+:root {
+  --bg: #0b1020;          /* Nachthimmel */
+  --surface: #131a2e;
+  --surface-2: #1b2440;
+  --line: #2a3556;
+  --fg: #e6e9f2;
+  --muted: #8f9ab8;
+  --accent: #8fb4ff;      /* Sternlicht-Blau */
+  --s-bad: #e0626a;
+  --s-meh: #e3a54b;
+  --s-good: #52c7a8;
+  --s-top: #7fd6ff;
+  --font-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]):not([data-mode="red"]) {
+    --bg: #eef1f7; --surface: #ffffff; --surface-2: #e4e9f3; --line: #cdd5e5;
+    --fg: #121a2e; --muted: #56617d; --accent: #2f5fd0;
+    --s-bad: #c4404a; --s-meh: #b7781c; --s-good: #1d8f73; --s-top: #1f7fb8;
+    color-scheme: light;
+  }
+}
+/* Rotlicht-Modus für die Dunkeladaptation am Teleskop */
+:root[data-mode="red"] {
+  --bg: #000000; --surface: #120000; --surface-2: #1d0303; --line: #3a0a0a;
+  --fg: #ff4a3d; --muted: #a5281f; --accent: #ff4a3d;
+  --s-bad: #6e1410; --s-meh: #a3241b; --s-good: #d8362a; --s-top: #ff5546;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 15px/1.5 var(--font-body);
+  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+}
+.wrap { max-width: 640px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 48px; display: flex; flex-direction: column; gap: 20px; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Kopfzeile */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { font: 700 1.05rem/1 var(--font-display); letter-spacing: .01em; }
+.brand small { display: block; font: 400 .72rem/1.4 var(--font-mono); color: var(--muted); letter-spacing: .04em; margin-top: 4px; }
+.top-actions { display: flex; gap: 8px; }
+.icon-btn { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; font-size: .82rem; cursor: pointer; }
+.icon-btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+
+/* Ort */
+.loc { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; cursor: pointer; width: 100%; text-align: left; }
+.loc .pin { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); flex: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent); }
+.loc .name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.loc .coords { margin-left: auto; font: .75rem var(--font-mono); color: var(--muted); white-space: nowrap; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.search-row { display: flex; gap: 8px; }
+.search-row input { flex: 1; min-width: 0; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; font: inherit; }
+.btn { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; cursor: pointer; white-space: nowrap; }
+.btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+.results { display: flex; flex-direction: column; gap: 4px; }
+.results button { text-align: left; background: none; border: 0; border-radius: 8px; padding: 8px; cursor: pointer; }
+.results button:hover { background: var(--surface-2); }
+.results small { color: var(--muted); }
+.hint { color: var(--muted); font-size: .85rem; margin: 0; }
+
+/* Nachtnote */
+.hero { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; align-items: center; padding: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; }
+.hero .night-label { grid-column: 1 / -1; font: 500 .72rem var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.score { font: 700 4.2rem/0.9 var(--font-display); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.score sub { font: 500 1rem var(--font-mono); color: var(--muted); vertical-align: baseline; letter-spacing: 0; }
+.hero-text { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.hero-text .headline { font: 600 1.05rem/1.3 var(--font-body); text-wrap: balance; }
+.hero-text .why { color: var(--fg); opacity: .88; margin: 0; }
+.pills { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.pill { font: 500 .72rem var(--font-mono); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; color: var(--muted); }
+.pill.conf-hoch { color: var(--s-good); border-color: currentColor; }
+.pill.conf-mittel { color: var(--s-meh); border-color: currentColor; }
+.pill.conf-niedrig { color: var(--s-bad); border-color: currentColor; }
+.c1, .c2, .c3 { color: var(--s-bad); } .c4, .c5 { color: var(--s-meh); } .c6, .c7 { color: var(--s-good); } .c8, .c9, .c10 { color: var(--s-top); }
+
+/* Zielwahl */
+.seg { display: flex; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 3px; gap: 3px; }
+.seg button { flex: 1; background: none; border: 0; border-radius: 9px; padding: 8px 6px; cursor: pointer; font-size: .88rem; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--fg); font-weight: 600; }
+
+/* Nächte */
+h2 { font: 600 .75rem var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 8px; }
+.nights { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.night-btn { flex: none; min-width: 84px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; cursor: pointer; }
+.night-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--surface-2); }
+.night-btn .d { font-size: .78rem; color: var(--muted); }
+.night-btn .n { font: 700 1.4rem/1 var(--font-display); font-variant-numeric: tabular-nums; }
+
+/* Stunden */
+.hours { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--surface); }
+.hour { border-top: 1px solid var(--line); }
+.hour:first-child { border-top: 0; }
+.hour > button { width: 100%; display: grid; grid-template-columns: 3.2rem 1.8rem 1fr 3.4rem; gap: 10px; align-items: center; padding: 9px 12px; background: none; border: 0; cursor: pointer; text-align: left; font-variant-numeric: tabular-nums; }
+.hour.past > button { opacity: .45; }
+.hour .t { font: 500 .9rem var(--font-mono); }
+.hour .sc { font: 700 1.05rem var(--font-display); text-align: right; }
+.bar { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; height: 10px; }
+.bar i { border-radius: 2px; background: var(--surface-2); }
+.bar i.on { background: currentColor; }
+.hour .cl { font: .8rem var(--font-mono); color: var(--muted); text-align: right; }
+.detail { padding: 2px 12px 12px; display: flex; flex-direction: column; gap: 8px; font-size: .85rem; }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); }
+.facts b { color: var(--fg); font-weight: 500; }
+.mtable { width: 100%; border-collapse: collapse; font: .8rem var(--font-mono); font-variant-numeric: tabular-nums; }
+.mtable th, .mtable td { text-align: right; padding: 3px 4px; border-bottom: 1px solid var(--line); }
+.mtable th:first-child, .mtable td:first-child { text-align: left; }
+.mtable th { color: var(--muted); font-weight: 400; }
+.tbl-wrap { overflow-x: auto; }
+
+/* Modelle & Rechenweg */
+.models { display: flex; flex-wrap: wrap; gap: 6px; }
+.model { font: .78rem var(--font-mono); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; background: var(--surface); }
+.model.off { opacity: .5; text-decoration: line-through; }
+.model small { color: var(--muted); }
+details.how { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+details.how summary { cursor: pointer; font-weight: 600; }
+details.how p, details.how li { color: var(--fg); opacity: .9; font-size: .9rem; max-width: 65ch; }
+details.how code { font: .82rem var(--font-mono); background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
+.foot { font-size: .78rem; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+.foot a { color: var(--accent); }
+.status { padding: 14px; border-radius: 14px; background: var(--surface); border: 1px dashed var(--line); color: var(--muted); }
+.status.err { color: var(--s-bad); border-color: currentColor; }
+.skeleton .score { color: var(--line); }
+@media (prefers-reduced-motion: no-preference) {
+  .loading .score { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .4; } }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">Astro-Go<small>SEESTAR S50 PRO · 50/260 MM · 2,30″/PX</small></div>
+    <div class="top-actions">
+      <button class="icon-btn" id="redBtn" aria-pressed="false" title="Rotlicht schont die Dunkeladaptation">Rotlicht</button>
+      <button class="icon-btn" id="refreshBtn">Aktualisieren</button>
+    </div>
+  </header>
+
+  <button class="loc" id="locBtn" aria-expanded="false">
+    <span class="pin" aria-hidden="true"></span>
+    <span class="name" id="locName">Stranda</span>
+    <span class="coords" id="locCoords">62,31° N · 6,94° O</span>
+  </button>
+  <div class="panel" id="locPanel" hidden>
+    <div class="search-row">
+      <input id="q" type="search" placeholder="Ort suchen, z. B. Geiranger" autocomplete="off" aria-label="Ort suchen">
+      <button class="btn" id="searchBtn">Suchen</button>
+    </div>
+    <button class="btn" id="gpsBtn">Meinen Standort verwenden</button>
+    <div class="results" id="results"></div>
+    <p class="hint" id="locHint">Der gewählte Ort wird nur in diesem Browser gespeichert.</p>
+  </div>
+
+  <section class="hero loading skeleton" id="hero" aria-live="polite">
+    <div class="night-label" id="heroLabel">Heute Nacht</div>
+    <div class="score" id="heroScore">–<sub>/10</sub></div>
+    <div class="hero-text">
+      <div class="headline" id="heroHeadline">Lade Vorhersagen …</div>
+      <p class="why" id="heroWhy">Fünf Wettermodelle werden abgefragt.</p>
+    </div>
+    <div class="pills" id="heroPills"></div>
+  </section>
+
+  <div class="seg" role="group" aria-label="Zieltyp">
+    <button id="tNebula" data-target="nebula" aria-pressed="true">Nebel mit Filter</button>
+    <button id="tBroad" data-target="broadband" aria-pressed="false">Galaxien &amp; Haufen</button>
+  </div>
+
+  <section>
+    <h2>Nächste Nächte</h2>
+    <div class="nights" id="nights"></div>
+  </section>
+
+  <section>
+    <h2 id="hoursTitle">Stunde für Stunde</h2>
+    <div class="hours" id="hours"></div>
+  </section>
+
+  <section>
+    <h2>Modelle für diesen Ort</h2>
+    <div class="models" id="models"></div>
+  </section>
+
+  <details class="how">
+    <summary>So wird die Note berechnet</summary>
+    <p>Jede Stunde mit Sonne unter −6° bekommt eine Qualität zwischen 0 und 1. Sie ist das Produkt mehrerer Faktoren; die Note ist <code>1 + 9 × Qualität</code>, gerundet.</p>
+    <ul>
+      <li><b>Wolken:</b> tiefe und mittlere Wolken zählen voll, hohe zu 70 %. Die Werte der Modelle werden gewichtet gemittelt (MET Nordic doppelt, solange es reicht). Faktor <code>(1 − Bedeckung)^1,5</code>.</li>
+      <li><b>Dunkelheit:</b> astronomische Nacht 1,0; astronomische Dämmerung 0,7–1,0; nautische Dämmerung 0,35–0,7.</li>
+      <li><b>Mond:</b> Beleuchtung × Höhe über dem Horizont. Bei Nebeln mit Duo-Band-Filter zählt der Mond nur zu 35 %, bei Galaxien und Haufen zu 80 %.</li>
+      <li><b>Niederschlag, Nebel, Tau, Böen:</b> Abzüge bei Regen, Sichtweite unter 5 km, Taupunktabstand unter 2 °C und Böen über 20 km/h.</li>
+      <li><b>Seeing:</b> nur grob über den Jetstream (GFS, 200–300 hPa), höchstens 10 % Abzug. Bei 2,3″ pro Pixel begrenzt das Seeing die Seestar selten.</li>
+    </ul>
+    <p>Die <b>Nachtnote</b> ist der Mittelwert der besten drei aufeinanderfolgenden Stunden. Das <b>beste Fenster</b> umfasst zusammenhängende Stunden mit Note 6 oder besser. Die <b>Sicherheit</b> sinkt, wenn die Modelle bei der Bewölkung um mehr als 20 bzw. 45 Prozentpunkte auseinanderliegen.</p>
+    <p>Grenzen: Modelle sehen lokalen Nebel im Fjord und kleine Wolkenlücken schlecht. Vor dem Aufbau lohnt ein Blick auf das aktuelle Satellitenbild.</p>
+  </details>
+
+  <footer class="foot">
+    <span id="updated">Noch nicht geladen.</span>
+    <span>Wetterdaten: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0), Modelle von MET Norway, DWD, ECMWF, UK Met Office und NOAA. Sonne und Mond werden im Browser berechnet.</span>
+  </footer>
+</div>
+
+<script>
+/* Astro-Go: Kernlogik (Sonne/Mond, Modellabfrage, Bewertung 1–10).
+   Läuft im Browser (window.AstroCore) und in Node (module.exports) zum Testen. */
+(function (root) {
+  "use strict";
+
+  /* ---------- Sonne & Mond (Standardformeln nach Meeus, vereinfacht) ---------- */
+  const RAD = Math.PI / 180;
+  const OBL = RAD * 23.4397; // Schiefe der Ekliptik
+
+  function toDays(ms) { return ms / 86400000 - 0.5 + 2440588 - 2451545; }
+  function rightAsc(l, b) { return Math.atan2(Math.sin(l) * Math.cos(OBL) - Math.tan(b) * Math.sin(OBL), Math.cos(l)); }
+  function declination(l, b) { return Math.asin(Math.sin(b) * Math.cos(OBL) + Math.cos(b) * Math.sin(OBL) * Math.sin(l)); }
+  function altitude(H, phi, dec) { return Math.asin(Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(H)); }
+  function sidereal(d, lw) { return RAD * (280.16 + 360.9856235 * d) - lw; }
+
+  function sunCoords(d) {
+    const M = RAD * (357.5291 + 0.98560028 * d);
+    const C = RAD * (1.9148 * Math.sin(M) + 0.02 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M));
+    const L = M + C + RAD * 102.9372 + Math.PI;
+    return { dec: declination(L, 0), ra: rightAsc(L, 0) };
+  }
+  function moonCoords(d) {
+    const L = RAD * (218.316 + 13.176396 * d);
+    const M = RAD * (134.963 + 13.064993 * d);
+    const F = RAD * (93.272 + 13.22935 * d);
+    const l = L + RAD * 6.289 * Math.sin(M);
+    const b = RAD * 5.128 * Math.sin(F);
+    return { ra: rightAsc(l, b), dec: declination(l, b), dist: 385001 - 20905 * Math.cos(M) };
+  }
+  function sunAltitude(ms, lat, lon) {
+    const d = toDays(ms), lw = RAD * -lon, phi = RAD * lat, c = sunCoords(d);
+    return altitude(sidereal(d, lw) - c.ra, phi, c.dec) / RAD;
+  }
+  function moonAltitude(ms, lat, lon) {
+    const d = toDays(ms), lw = RAD * -lon, phi = RAD * lat, c = moonCoords(d);
+    return altitude(sidereal(d, lw) - c.ra, phi, c.dec) / RAD;
+  }
+  function moonIllumination(ms) {
+    const d = toDays(ms), s = sunCoords(d), m = moonCoords(d), sdist = 149598000;
+    const phi = Math.acos(Math.sin(s.dec) * Math.sin(m.dec) + Math.cos(s.dec) * Math.cos(m.dec) * Math.cos(s.ra - m.ra));
+    const inc = Math.atan2(sdist * Math.sin(phi), m.dist - sdist * Math.cos(phi));
+    return (1 + Math.cos(inc)) / 2;
+  }
+
+  /* ---------- Modelle ---------- */
+  // weight: Gewicht im Konsens; hours: sinnvolle Reichweite der Vorhersage
+  const MODELS = [
+    { id: "metno_nordic", label: "MET Nordic", note: "1 km, nur Skandinavien", weight: 2.0, hours: 60 },
+    { id: "icon_eu", label: "ICON-EU", note: "DWD, 7 km", weight: 1.2, hours: 120 },
+    { id: "ecmwf_ifs025", label: "ECMWF IFS", note: "0,25°", weight: 1.2, hours: 240 },
+    { id: "ukmo_seamless", label: "UK Met Office", note: "global 10 km", weight: 1.0, hours: 168 },
+    { id: "gfs_seamless", label: "GFS", note: "NOAA", weight: 0.8, hours: 240 }
+  ];
+  const SURFACE_VARS = ["cloud_cover", "cloud_cover_low", "cloud_cover_mid", "cloud_cover_high",
+    "temperature_2m", "dew_point_2m", "wind_gusts_10m", "precipitation", "visibility"];
+  const JET_VARS = ["wind_speed_200hPa", "wind_speed_250hPa", "wind_speed_300hPa"];
+
+  function forecastUrl(lat, lon, modelId, vars, days) {
+    const p = new URLSearchParams({
+      latitude: lat.toFixed(4), longitude: lon.toFixed(4),
+      hourly: vars.join(","), models: modelId,
+      timezone: "auto", timeformat: "unixtime", forecast_days: String(days)
+    });
+    return "https://api.open-meteo.com/v1/forecast?" + p.toString();
+  }
+
+  // Liest eine Variable; akzeptiert auch den Schlüssel mit Modell-Suffix.
+  function series(hourly, name, modelId) {
+    if (!hourly) return null;
+    return hourly[name] || hourly[name + "_" + modelId] || null;
+  }
+
+  // Wandelt eine Modellantwort in {time(ms) -> Werte}
+  function parseModel(json, modelId) {
+    const h = json && json.hourly;
+    if (!h || !h.time) return null;
+    const get = n => series(h, n, modelId);
+    const total = get("cloud_cover"), low = get("cloud_cover_low"), mid = get("cloud_cover_mid"), high = get("cloud_cover_high");
+    const T = get("temperature_2m"), Td = get("dew_point_2m"), gust = get("wind_gusts_10m");
+    const pr = get("precipitation"), vis = get("visibility");
+    const out = new Map();
+    let useful = 0;
+    h.time.forEach((t, i) => {
+      const v = {
+        total: val(total, i), low: val(low, i), mid: val(mid, i), high: val(high, i),
+        T: val(T, i), Td: val(Td, i), gust: val(gust, i), precip: val(pr, i), vis: val(vis, i)
+      };
+      v.cloud = effectiveCloud(v);
+      if (v.cloud !== null) useful++;
+      out.set(t * 1000, v);
+    });
+    return useful > 0 ? { map: out, tz: json.timezone, offset: json.utc_offset_seconds } : null;
+  }
+  function val(arr, i) { return arr && arr[i] !== null && arr[i] !== undefined ? arr[i] : null; }
+
+  // Effektive Bedeckung in %: tiefe und mittlere Wolken blockieren voll,
+  // hohe (oft dünne Cirren) zu 70 %. Zufällige Überlappung der Schichten.
+  function effectiveCloud(v) {
+    if (v.low !== null || v.mid !== null || v.high !== null) {
+      const l = (v.low || 0) / 100, m = (v.mid || 0) / 100, h = (v.high || 0) / 100;
+      return 100 * (1 - (1 - l) * (1 - m) * (1 - 0.7 * h));
+    }
+    return v.total;
+  }
+
+  /* ---------- Bewertung ---------- */
+  const TARGETS = {
+    nebula: { label: "Nebel mit Filter", moonWeight: 0.35 },
+    broadband: { label: "Galaxien & Sternhaufen", moonWeight: 0.8 }
+  };
+
+  function weightedStats(values) {
+    // values: [{v, w}]
+    const sw = values.reduce((a, x) => a + x.w, 0);
+    if (!sw) return null;
+    const mean = values.reduce((a, x) => a + x.v * x.w, 0) / sw;
+    const min = Math.min(...values.map(x => x.v)), max = Math.max(...values.map(x => x.v));
+    return { mean, min, max, spread: max - min, n: values.length };
+  }
+
+  // Bewertet eine Stunde. models: [{model, data(Map)}], jet: Map|null
+  function scoreHour(ms, lat, lon, models, jet, startMs, target) {
+    const sun = sunAltitude(ms, lat, lon);
+    const moonAlt = moonAltitude(ms, lat, lon);
+    const illum = moonIllumination(ms);
+    const leadH = (ms - startMs) / 3600000;
+
+    const perModel = [];
+    const clouds = [], Ts = [], Tds = [], gusts = [], precs = [], viss = [];
+    for (const { model, data } of models) {
+      const v = data.get(ms);
+      if (!v || v.cloud === null) continue;
+      if (leadH > model.hours) continue;
+      perModel.push({ id: model.id, label: model.label, cloud: v.cloud, low: v.low, mid: v.mid, high: v.high });
+      clouds.push({ v: v.cloud, w: model.weight });
+      if (v.T !== null) Ts.push({ v: v.T, w: model.weight });
+      if (v.Td !== null) Tds.push({ v: v.Td, w: model.weight });
+      if (v.gust !== null) gusts.push({ v: v.gust, w: model.weight });
+      if (v.precip !== null) precs.push({ v: v.precip, w: model.weight });
+      if (v.vis !== null) viss.push({ v: v.vis, w: model.weight });
+    }
+    const c = weightedStats(clouds);
+    if (!c) return null;
+
+    const T = weightedStats(Ts), Td = weightedStats(Tds), G = weightedStats(gusts), P = weightedStats(precs), V = weightedStats(viss);
+    const layer = name => {
+      const arr = perModel.filter(m => m[name] !== null && m[name] !== undefined);
+      return arr.length ? arr.reduce((a, m) => a + m[name], 0) / arr.length : null;
+    };
+
+    // Faktoren 0..1 (1 = kein Einfluss)
+    const f = {};
+    // Dunkelheit
+    if (sun > -6) f.dark = 0;
+    else if (sun > -12) f.dark = 0.35 + 0.35 * ((-6 - sun) / 6);   // nautische Dämmerung: 0,35–0,70
+    else if (sun > -18) f.dark = 0.7 + 0.3 * ((-12 - sun) / 6);    // astronomische Dämmerung: 0,70–1,0
+    else f.dark = 1;
+    // Wolken
+    f.cloud = Math.pow(1 - c.mean / 100, 1.5);
+    // Mond
+    const moonUp = moonAlt > 0;
+    const moonHeight = moonUp ? 0.5 + 0.5 * Math.min(moonAlt, 30) / 30 : 0;
+    f.moon = 1 - TARGETS[target].moonWeight * illum * moonHeight;
+    // Niederschlag
+    f.rain = P && P.mean >= 0.2 ? 0 : (P && P.mean >= 0.05 ? 0.5 : 1);
+    // Nebel / Dunst
+    f.fog = V && V.mean < 1000 ? 0.2 : (V && V.mean < 5000 ? 0.7 : 1);
+    // Tau
+    const gap = T && Td ? T.mean - Td.mean : null;
+    f.dew = gap === null ? 1 : gap < 1 ? 0.8 : gap < 2 ? 0.9 : 1;
+    // Wind (Seestar ist leicht, Böen verwackeln Einzelbilder)
+    const g = G ? G.mean : null;
+    f.wind = g === null ? 1 : g > 40 ? 0.5 : g > 30 ? 0.7 : g > 20 ? 0.88 : 1;
+    // Seeing (grob über Jetstream; für 2,4"/px kaum relevant)
+    let jetSpeed = null;
+    if (jet && jet.get(ms)) jetSpeed = jet.get(ms);
+    f.seeing = jetSpeed === null ? 1 : jetSpeed > 150 ? 0.9 : jetSpeed > 100 ? 0.95 : 1;
+
+    const q = Object.values(f).reduce((a, x) => a * x, 1);
+    const score = Math.max(1, Math.min(10, Math.round(1 + 9 * q)));
+
+    return {
+      ms, score, q, f, sun, moonAlt, illum, moonUp,
+      cloud: c.mean, cloudMin: c.min, cloudMax: c.max, spread: c.spread, nModels: c.n,
+      low: layer("low"), mid: layer("mid"), high: layer("high"),
+      gap, gust: g, precip: P ? P.mean : null, vis: V ? V.mean : null, jet: jetSpeed,
+      perModel
+    };
+  }
+
+  // Gruppiert Stunden zu Nächten: von 15 Uhr bis 11 Uhr Ortszeit, nur Stunden mit Sonne < -6°
+  function groupNights(hours, offsetSec) {
+    const nights = new Map();
+    for (const h of hours) {
+      if (!h || h.sun > -6) continue;
+      const local = new Date(h.ms + offsetSec * 1000);
+      let y = local.getUTCFullYear(), mo = local.getUTCMonth(), d = local.getUTCDate();
+      const hr = local.getUTCHours();
+      if (hr < 15) { const prev = new Date(Date.UTC(y, mo, d - 1)); y = prev.getUTCFullYear(); mo = prev.getUTCMonth(); d = prev.getUTCDate(); }
+      const key = Date.UTC(y, mo, d);
+      if (!nights.has(key)) nights.set(key, []);
+      nights.get(key).push(h);
+    }
+    return [...nights.entries()].sort((a, b) => a[0] - b[0]).map(([key, hrs]) => ({ dateKey: key, hours: hrs }));
+  }
+
+  // Bewertet eine Nacht: Note = Mittel der besten 3 aufeinanderfolgenden Stunden
+  function scoreNight(night) {
+    const hrs = night.hours;
+    const L = Math.min(3, hrs.length);
+    let best = -1, bestIdx = 0;
+    for (let i = 0; i + L <= hrs.length; i++) {
+      const m = hrs.slice(i, i + L).reduce((a, h) => a + h.q, 0) / L;
+      if (m > best) { best = m; bestIdx = i; }
+    }
+    const block = hrs.slice(bestIdx, bestIdx + L);
+    const score = Math.max(1, Math.min(10, Math.round(1 + 9 * best)));
+
+    // Bestes Fenster: zusammenhängende Stunden mit Note >= 6 um den besten Block
+    let win = null;
+    const good = h => h.score >= 6;
+    let s = -1;
+    for (let i = 0; i < hrs.length; i++) {
+      if (good(hrs[i])) { if (s < 0) s = i; }
+      if ((!good(hrs[i]) || i === hrs.length - 1) && s >= 0) {
+        const e = good(hrs[i]) ? i : i - 1;
+        const run = { start: hrs[s].ms, end: hrs[e].ms + 3600000, len: e - s + 1, avg: hrs.slice(s, e + 1).reduce((a, h) => a + h.q, 0) / (e - s + 1) };
+        if (!win || run.len * run.avg > win.len * win.avg) win = run;
+        s = -1;
+      }
+    }
+    return { score, block, window: win };
+  }
+
+  /* ---------- Erklärungstext ---------- */
+  function fmtH(ms, offsetSec) {
+    const d = new Date(ms + offsetSec * 1000);
+    return String(d.getUTCHours()).padStart(2, "0") + " Uhr";
+  }
+  function avg(arr, k) {
+    const v = arr.map(x => x[k]).filter(x => x !== null && x !== undefined);
+    return v.length ? v.reduce((a, x) => a + x, 0) / v.length : null;
+  }
+
+  function describeNight(nightScore, offsetSec) {
+    const { block, window: win } = nightScore;
+    const parts = [];
+
+    // Fenster
+    if (win) parts.push(`Bestes Fenster ${fmtH(win.start, offsetSec)} bis ${fmtH(win.end, offsetSec)}`);
+    else parts.push("Kein Zeitraum mit Note 6 oder besser");
+
+    // Begrenzende Faktoren im besten Block
+    const loss = k => 1 - block.reduce((a, h) => a + h.f[k], 0) / block.length;
+    const cl = avg(block, "cloud");
+    const reasons = [];
+    if (loss("rain") > 0.2) reasons.push({ w: loss("rain"), t: "Niederschlag erwartet" });
+    if (loss("cloud") > 0.15) {
+      const lo = avg(block, "low"), mi = avg(block, "mid"), hi = avg(block, "high");
+      const layers = [["tiefe", lo], ["mittelhohe", mi], ["hohe", hi]].filter(x => x[1] !== null).sort((a, b) => b[1] - a[1]);
+      const which = layers.length && layers[0][1] > 20 ? `, vor allem ${layers[0][0]} Wolken` : "";
+      reasons.push({ w: loss("cloud"), t: `Bewölkung um ${Math.round(cl)} %${which}` });
+    }
+    if (loss("fog") > 0.15) reasons.push({ w: loss("fog"), t: "Nebel- oder Dunstgefahr" });
+    if (loss("moon") > 0.12) {
+      const up = block.filter(h => h.moonUp);
+      const ill = Math.round(avg(block, "illum") * 100);
+      reasons.push({ w: loss("moon"), t: `Mond zu ${ill} % beleuchtet und ${up.length === block.length ? "die ganze Zeit" : "zeitweise"} über dem Horizont` });
+    }
+    if (loss("dark") > 0.12) reasons.push({ w: loss("dark"), t: "nur Dämmerung, keine volle Dunkelheit" });
+    if (loss("wind") > 0.1) reasons.push({ w: loss("wind"), t: `Böen bis ${Math.round(Math.max(...block.map(h => h.gust || 0)))} km/h` });
+    if (loss("dew") > 0.08) reasons.push({ w: loss("dew"), t: "Taugefahr (Taupunkt sehr nah)" });
+    reasons.sort((a, b) => b.w - a.w);
+
+    // Modellübereinstimmung
+    const spread = avg(block, "spread"), n = Math.round(avg(block, "nModels"));
+    let agree;
+    if (n <= 1) agree = "nur ein Modell verfügbar";
+    else if (spread < 20) agree = `${n} Modelle einig`;
+    else if (spread < 45) agree = `${n} Modelle weitgehend einig`;
+    else agree = `${n} Modelle uneinig (${Math.round(Math.min(...block.map(h => h.cloudMin)))}–${Math.round(Math.max(...block.map(h => h.cloudMax)))} % Bewölkung)`;
+
+    let text;
+    if (!reasons.length) text = `Klarer, dunkler Himmel; ${agree}.`;
+    else text = reasons.slice(0, 2).map(r => r.t).join("; ") + `; ${agree}.`;
+    text = text.charAt(0).toUpperCase() + text.slice(1);
+
+    const confidence = n <= 1 ? "niedrig" : spread >= 45 ? "niedrig" : spread >= 20 ? "mittel" : "hoch";
+    return { headline: parts[0], text, confidence, agreeText: agree };
+  }
+
+  const api = {
+    MODELS, SURFACE_VARS, JET_VARS, TARGETS,
+    sunAltitude, moonAltitude, moonIllumination,
+    forecastUrl, parseModel, effectiveCloud, scoreHour, groupNights, scoreNight, describeNight, fmtH
+  };
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  else root.AstroCore = api;
+})(typeof window !== "undefined" ? window : globalThis);
+
+</script>
+<script>
+(function () {
+  "use strict";
+  const A = window.AstroCore;
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ohne Speicher weiter */ } }
+  };
+
+  const state = {
+    loc: store.get("astro.loc", { name: "Stranda", admin: "Møre og Romsdal", lat: 62.3088, lon: 6.9426 }),
+    target: store.get("astro.target", "nebula"),
+    red: store.get("astro.red", false),
+    data: null,       // { models:[{model,data}], status:[], jet, offset, tz }
+    nights: [],
+    selected: 0,
+    openHour: null
+  };
+
+  function el(tag, props, children) {
+    const n = document.createElement(tag);
+    if (props) for (const [k, v] of Object.entries(props)) {
+      if (k === "class") n.className = v;
+      else if (k === "text") n.textContent = v;
+      else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+      else n.setAttribute(k, v);
+    }
+    (children || []).forEach(c => c && n.appendChild(typeof c === "string" ? document.createTextNode(c) : c));
+    return n;
+  }
+  const fmtNum = (x, d = 0) => x === null || x === undefined || isNaN(x) ? "–" : x.toLocaleString("de-DE", { maximumFractionDigits: d, minimumFractionDigits: d });
+
+  /* ---------- Darstellung ---------- */
+  function applyRed() {
+    document.documentElement.toggleAttribute("data-mode", false);
+    if (state.red) document.documentElement.setAttribute("data-mode", "red");
+    $("redBtn").setAttribute("aria-pressed", String(state.red));
+    document.querySelector('meta[name="theme-color"]').setAttribute("content", state.red ? "#000000" : "#0b1020");
+  }
+  function renderLoc() {
+    const l = state.loc;
+    $("locName").textContent = l.name + (l.admin ? ", " + l.admin : "");
+    $("locCoords").textContent = `${fmtNum(Math.abs(l.lat), 2)}° ${l.lat >= 0 ? "N" : "S"} · ${fmtNum(Math.abs(l.lon), 2)}° ${l.lon >= 0 ? "O" : "W"}`;
+  }
+  function renderTarget() {
+    document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.target === state.target)));
+  }
+
+  function nightLabel(dateKey, i) {
+    const d = new Date(dateKey);
+    const wd = d.toLocaleDateString("de-DE", { weekday: "short", timeZone: "UTC" });
+    const dm = d.toLocaleDateString("de-DE", { day: "numeric", month: "numeric", timeZone: "UTC" });
+    if (i === 0 && isTonight(dateKey)) return { short: "Heute", long: `Heute Nacht (${wd} ${dm})` };
+    return { short: `${wd} ${dm}`, long: `Nacht ${wd} ${dm}` };
+  }
+  function isTonight(dateKey) {
+    const off = state.data ? state.data.offset : 0;
+    const now = new Date(Date.now() + off * 1000);
+    let y = now.getUTCFullYear(), m = now.getUTCMonth(), d = now.getUTCDate();
+    if (now.getUTCHours() < 15) { const p = new Date(Date.UTC(y, m, d - 1)); y = p.getUTCFullYear(); m = p.getUTCMonth(); d = p.getUTCDate(); }
+    return Date.UTC(y, m, d) === dateKey;
+  }
+
+  function compute() {
+    const D = state.data;
+    if (!D) return;
+    const allTimes = new Set();
+    D.models.forEach(m => m.data.forEach((_, t) => allTimes.add(t)));
+    const times = [...allTimes].sort((a, b) => a - b);
+    const start = times[0];
+    const hours = times.map(ms => A.scoreHour(ms, state.loc.lat, state.loc.lon, D.models, D.jet, start, state.target)).filter(Boolean);
+    const now = Date.now();
+    state.nights = A.groupNights(hours, D.offset)
+      .filter(n => n.hours[n.hours.length - 1].ms + 3600000 > now)
+      .map(n => {
+        // Für die laufende Nacht nur verbleibende Stunden bewerten
+        const future = n.hours.filter(h => h.ms + 3600000 > now);
+        const basis = future.length ? { ...n, hours: future } : n;
+        const s = A.scoreNight(basis);
+        return { ...n, result: s, desc: A.describeNight(s, D.offset) };
+      });
+    if (state.selected >= state.nights.length) state.selected = 0;
+  }
+
+  function renderAll() {
+    renderHero(); renderNights(); renderHours(); renderModels();
+  }
+
+  function renderHero() {
+    const hero = $("hero");
+    hero.classList.remove("loading", "skeleton");
+    const n = state.nights[state.selected];
+    if (!n) {
+      $("heroLabel").textContent = "Keine Nacht im Vorhersagezeitraum";
+      $("heroScore").replaceChildren("–", el("sub", { text: "/10" }));
+      $("heroHeadline").textContent = "Keine dunklen Stunden gefunden";
+      $("heroWhy").textContent = "Die Sonne sinkt in diesem Zeitraum nicht unter −6°.";
+      $("heroPills").replaceChildren();
+      return;
+    }
+    const s = n.result.score;
+    $("heroLabel").textContent = nightLabel(n.dateKey, state.selected).long;
+    const sc = $("heroScore");
+    sc.className = "score c" + s;
+    sc.replaceChildren(String(s), el("sub", { text: "/10" }));
+    $("heroHeadline").textContent = n.desc.headline;
+    $("heroWhy").textContent = n.desc.text;
+    const ill = Math.round(n.result.block.reduce((a, h) => a + h.illum, 0) / n.result.block.length * 100);
+    $("heroPills").replaceChildren(
+      el("span", { class: "pill conf-" + n.desc.confidence, text: "Sicherheit " + n.desc.confidence }),
+      el("span", { class: "pill", text: `Mond ${ill} %` }),
+      el("span", { class: "pill", text: A.TARGETS[state.target].label })
+    );
+  }
+
+  function renderNights() {
+    const box = $("nights");
+    box.replaceChildren(...state.nights.map((n, i) => {
+      const lab = nightLabel(n.dateKey, i);
+      return el("button", {
+        class: "night-btn", "aria-pressed": String(i === state.selected),
+        onclick: () => { state.selected = i; state.openHour = null; renderAll(); }
+      }, [el("span", { class: "d", text: lab.short }), el("span", { class: "n c" + n.result.score, text: String(n.result.score) })]);
+    }));
+  }
+
+  function renderHours() {
+    const box = $("hours");
+    const n = state.nights[state.selected];
+    if (!n) { box.replaceChildren(el("div", { class: "status", text: "Keine Stunden." })); return; }
+    const off = state.data.offset, now = Date.now();
+    box.replaceChildren(...n.hours.map(h => {
+      const past = h.ms + 3600000 <= now;
+      const open = state.openHour === h.ms;
+      const bar = el("div", { class: "bar c" + h.score, "aria-hidden": "true" }, Array.from({ length: 10 }, (_, k) => el("i", { class: k < h.score ? "on" : "" })));
+      const row = el("button", {
+        "aria-expanded": String(open),
+        "aria-label": `${A.fmtH(h.ms, off)}: Note ${h.score} von 10, Bewölkung ${Math.round(h.cloud)} Prozent`,
+        onclick: () => { state.openHour = open ? null : h.ms; renderHours(); }
+      }, [
+        el("span", { class: "t", text: A.fmtH(h.ms, off).replace(" Uhr", ":00") }),
+        el("span", { class: "sc c" + h.score, text: String(h.score) }),
+        bar,
+        el("span", { class: "cl", text: Math.round(h.cloud) + " % ☁" })
+      ]);
+      const wrap = el("div", { class: "hour" + (past ? " past" : "") }, [row]);
+      if (open) wrap.appendChild(hourDetail(h));
+      return wrap;
+    }));
+  }
+
+  function hourDetail(h) {
+    const darkTxt = h.sun <= -18 ? "astronomische Nacht" : h.sun <= -12 ? "astronomische Dämmerung" : "nautische Dämmerung";
+    const facts = el("div", { class: "facts" }, [
+      fact("Sonne", `${fmtNum(h.sun)}° (${darkTxt})`),
+      fact("Mond", h.moonUp ? `${fmtNum(h.moonAlt)}° hoch, ${Math.round(h.illum * 100)} %` : "unter dem Horizont"),
+      fact("Taupunktabstand", h.gap === null ? "–" : fmtNum(h.gap, 1) + " °C"),
+      fact("Böen", h.gust === null ? "–" : fmtNum(h.gust) + " km/h"),
+      h.vis !== null ? fact("Sichtweite", fmtNum(h.vis / 1000, 1) + " km") : null,
+      h.jet !== null ? fact("Jetstream", fmtNum(h.jet) + " km/h") : null
+    ]);
+    const rows = h.perModel.map(m => el("tr", null, [
+      el("td", { text: m.label }),
+      el("td", { text: fmtNum(m.low) }), el("td", { text: fmtNum(m.mid) }), el("td", { text: fmtNum(m.high) }),
+      el("td", { text: fmtNum(m.cloud) })
+    ]));
+    const table = el("div", { class: "tbl-wrap" }, [el("table", { class: "mtable" }, [
+      el("thead", null, [el("tr", null, ["Modell", "tief", "mittel", "hoch", "wirksam"].map(t => el("th", { text: t })))]),
+      el("tbody", null, rows)
+    ])]);
+    const fl = h.f, names = { cloud: "Wolken", dark: "Dunkelheit", moon: "Mond", rain: "Regen", fog: "Nebel", dew: "Tau", wind: "Wind", seeing: "Seeing" };
+    const losses = Object.entries(fl).filter(([, v]) => v < 0.995).sort((a, b) => a[1] - b[1]).map(([k, v]) => `${names[k]} ×${fmtNum(v, 2)}`);
+    return el("div", { class: "detail" }, [
+      facts, table,
+      el("div", { class: "hint", text: losses.length ? "Abzüge: " + losses.join(" · ") : "Keine Abzüge." })
+    ]);
+  }
+  function fact(k, v) { return el("span", null, [k + ": ", el("b", { text: v })]); }
+
+  function renderModels() {
+    const box = $("models");
+    box.replaceChildren(...state.data.status.map(s => el("span", { class: "model" + (s.ok ? "" : " off"), title: s.ok ? s.model.note : "Für diesen Ort oder Zeitraum keine Daten" }, [
+      s.model.label + " ", el("small", { text: s.ok ? s.model.note : "keine Daten" })
+    ])));
+  }
+
+  /* ---------- Daten laden ---------- */
+  async function getJSON(url) {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  }
+
+  async function load() {
+    const { lat, lon } = state.loc;
+    const hero = $("hero");
+    hero.classList.add("loading");
+    $("heroHeadline").textContent = "Lade Vorhersagen …";
+    $("heroWhy").textContent = "Fünf Wettermodelle werden abgefragt.";
+    const reqs = A.MODELS.map(m => getJSON(A.forecastUrl(lat, lon, m.id, A.SURFACE_VARS, 5)).then(j => ({ m, j })));
+    const jetReq = getJSON(A.forecastUrl(lat, lon, "gfs_seamless", A.JET_VARS, 5));
+    const res = await Promise.allSettled(reqs);
+    const models = [], status = [];
+    let offset = null, tz = null;
+    res.forEach((r, i) => {
+      const m = A.MODELS[i];
+      const parsed = r.status === "fulfilled" ? A.parseModel(r.value.j, m.id) : null;
+      if (parsed) { models.push({ model: m, data: parsed.map }); offset = offset ?? parsed.offset; tz = tz ?? parsed.tz; }
+      status.push({ model: m, ok: !!parsed });
+    });
+    let jet = null;
+    try {
+      const j = await jetReq;
+      const h = j.hourly, t = h.time;
+      jet = new Map();
+      t.forEach((x, i) => {
+        const v = ["wind_speed_200hPa", "wind_speed_250hPa", "wind_speed_300hPa"].map(k => (h[k] || h[k + "_gfs_seamless"] || [])[i]).filter(v => v !== null && v !== undefined);
+        if (v.length) jet.set(x * 1000, Math.max(...v));
+      });
+    } catch (e) { jet = null; }
+
+    if (!models.length) {
+      hero.classList.remove("loading");
+      $("heroHeadline").textContent = "Keine Wetterdaten erhalten";
+      $("heroWhy").textContent = "Open-Meteo hat nicht geantwortet. Prüfe die Internetverbindung und tippe auf Aktualisieren.";
+      return;
+    }
+    state.data = { models, status, jet, offset, tz };
+    compute();
+    renderAll();
+    $("updated").textContent = `Stand ${new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })} · Zeiten in Ortszeit (${tz}).`;
+  }
+
+  /* ---------- Ortssuche ---------- */
+  async function search() {
+    const q = $("q").value.trim();
+    if (!q) return;
+    $("results").replaceChildren(el("p", { class: "hint", text: "Suche …" }));
+    try {
+      const j = await getJSON(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=de&format=json`);
+      const list = j.results || [];
+      if (!list.length) { $("results").replaceChildren(el("p", { class: "hint", text: "Kein Ort gefunden. Versuche eine andere Schreibweise." })); return; }
+      $("results").replaceChildren(...list.map(r => el("button", {
+        onclick: () => setLoc({ name: r.name, admin: [r.admin1, r.country_code].filter(Boolean).join(", "), lat: r.latitude, lon: r.longitude })
+      }, [r.name + " ", el("small", { text: [r.admin1, r.country].filter(Boolean).join(", ") })])));
+    } catch (e) {
+      $("results").replaceChildren(el("p", { class: "hint", text: "Suche fehlgeschlagen. Prüfe die Internetverbindung." }));
+    }
+  }
+  function setLoc(l) {
+    state.loc = l; store.set("astro.loc", l);
+    $("locPanel").hidden = true; $("locBtn").setAttribute("aria-expanded", "false");
+    $("results").replaceChildren(); $("q").value = "";
+    state.selected = 0; state.openHour = null;
+    renderLoc(); load();
+  }
+  function gps() {
+    if (!navigator.geolocation) { $("locHint").textContent = "Dieser Browser kann den Standort nicht bestimmen."; return; }
+    $("locHint").textContent = "Standort wird bestimmt …";
+    navigator.geolocation.getCurrentPosition(
+      p => setLoc({ name: "Mein Standort", admin: "", lat: p.coords.latitude, lon: p.coords.longitude }),
+      () => { $("locHint").textContent = "Standort nicht verfügbar. Erlaube den Zugriff oder suche den Ort per Name."; },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
+    );
+  }
+
+  /* ---------- Ereignisse ---------- */
+  $("locBtn").addEventListener("click", () => {
+    const p = $("locPanel"); p.hidden = !p.hidden;
+    $("locBtn").setAttribute("aria-expanded", String(!p.hidden));
+    if (!p.hidden) $("q").focus();
+  });
+  $("searchBtn").addEventListener("click", search);
+  $("q").addEventListener("keydown", e => { if (e.key === "Enter") search(); });
+  $("gpsBtn").addEventListener("click", gps);
+  $("refreshBtn").addEventListener("click", load);
+  $("redBtn").addEventListener("click", () => { state.red = !state.red; store.set("astro.red", state.red); applyRed(); });
+  document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+    state.target = b.dataset.target; store.set("astro.target", state.target);
+    renderTarget(); if (state.data) { compute(); renderAll(); }
+  }));
+
+  applyRed(); renderLoc(); renderTarget(); load();
+  // alle 30 Minuten neu laden, wenn die Seite offen bleibt
+  setInterval(() => { if (!document.hidden) load(); }, 30 * 60 * 1000);
+})();
+</script>
+</body>
+</html>
