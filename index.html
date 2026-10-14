@@ -251,7 +251,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     <div class="score" id="heroScore">–<sub>/10</sub></div>
     <div class="hero-text">
       <div class="headline" id="heroHeadline">Lade Vorhersagen …</div>
-      <p class="why" id="heroWhy">Fünf Wettermodelle werden abgefragt.</p>
+      <p class="why" id="heroWhy">Vier Wettermodelle werden abgefragt.</p>
     </div>
     <div class="pills" id="heroPills"></div>
   </section>
@@ -284,7 +284,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       <li><b>Dunkelheit:</b> astronomische Nacht 1,0; astronomische Dämmerung 0,7–1,0; nautische Dämmerung 0,35–0,7.</li>
       <li><b>Mond:</b> Beleuchtung × Höhe über dem Horizont. Bei Nebeln mit Duo-Band-Filter zählt der Mond nur zu 35 %, bei Galaxien und Haufen zu 80 %.</li>
       <li><b>Niederschlag, Nebel, Tau, Böen:</b> Abzüge bei Regen, Sichtweite unter 5 km, Taupunktabstand unter 2 °C und Böen über 20 km/h.</li>
-      <li><b>Seeing:</b> nur grob über den Jetstream (GFS, 200–300 hPa), höchstens 10 % Abzug. Bei 2,3″ pro Pixel begrenzt das Seeing die Seestar selten.</li>
+      <li><b>Seeing:</b> nur grob über den Jetstream (ECMWF, 200–300 hPa), höchstens 10 % Abzug. Bei 2,3″ pro Pixel begrenzt das Seeing die Seestar selten.</li>
     </ul>
     <p>Die <b>Nachtnote</b> ist der Mittelwert der besten drei aufeinanderfolgenden Stunden. Das <b>beste Fenster</b> umfasst zusammenhängende Stunden mit Note 6 oder besser. Die <b>Sicherheit</b> sinkt, wenn die Modelle bei der Bewölkung um mehr als 20 bzw. 45 Prozentpunkte auseinanderliegen.</p>
     <p>Grenzen: Modelle sehen lokalen Nebel im Fjord und kleine Wolkenlücken schlecht. Vor dem Aufbau lohnt ein Blick auf das aktuelle Satellitenbild.</p>
@@ -361,7 +361,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
 
   <footer class="foot">
     <span id="updated">Noch nicht geladen.</span>
-    <span>Wetterdaten: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0), Modelle von MET Norway, DWD, ECMWF, UK Met Office und NOAA. Weltraumwetter: <a href="https://www.swpc.noaa.gov/" target="_blank" rel="noopener">NOAA SWPC</a> und <a href="https://spaceweather.gfz.de/" target="_blank" rel="noopener">GFZ Potsdam</a> (Kp: CC BY 4.0). Sonne und Mond werden im Browser berechnet.</span>
+    <span>Wetterdaten: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0), Modelle von MET Norway, DWD, ECMWF und UK Met Office. Weltraumwetter: <a href="https://www.swpc.noaa.gov/" target="_blank" rel="noopener">NOAA SWPC</a> und <a href="https://spaceweather.gfz.de/" target="_blank" rel="noopener">GFZ Potsdam</a> (Kp: CC BY 4.0). Sonne und Mond werden im Browser berechnet.</span>
   </footer>
 </div>
 
@@ -567,9 +567,9 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     const hero = $("hero");
     hero.classList.add("loading");
     $("heroHeadline").textContent = "Lade Vorhersagen …";
-    $("heroWhy").textContent = "Fünf Wettermodelle werden abgefragt.";
+    $("heroWhy").textContent = "Vier Wettermodelle werden abgefragt.";
     const reqs = A.MODELS.map(m => getJSON(A.forecastUrl(lat, lon, m.id, A.SURFACE_VARS, 5)).then(j => ({ m, j })));
-    const jetReq = getJSON(A.forecastUrl(lat, lon, "gfs_seamless", A.JET_VARS, 5));
+    const jetReq = getJSON(A.forecastUrl(lat, lon, "ecmwf_ifs025", A.JET_VARS, 5));
     const res = await Promise.allSettled(reqs);
     const models = [], status = [];
     let offset = null, tz = null;
@@ -585,7 +585,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       const h = j.hourly, t = h.time;
       jet = new Map();
       t.forEach((x, i) => {
-        const v = ["wind_speed_200hPa", "wind_speed_250hPa", "wind_speed_300hPa"].map(k => (h[k] || h[k + "_gfs_seamless"] || [])[i]).filter(v => v !== null && v !== undefined);
+        const v = ["wind_speed_200hPa", "wind_speed_250hPa", "wind_speed_300hPa"].map(k => (h[k] || h[k + "_ecmwf_ifs025"] || [])[i]).filter(v => v !== null && v !== undefined);
         if (v.length) jet.set(x * 1000, Math.max(...v));
       });
     } catch (e) { jet = null; }

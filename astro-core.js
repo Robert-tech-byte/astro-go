@@ -48,8 +48,7 @@
     { id: "metno_nordic", label: "MET Nordic", note: "1 km, nur Skandinavien", weight: 2.0, hours: 60 },
     { id: "icon_eu", label: "ICON-EU", note: "DWD, 7 km", weight: 1.2, hours: 120 },
     { id: "ecmwf_ifs025", label: "ECMWF IFS", note: "0,25°", weight: 1.2, hours: 240 },
-    { id: "ukmo_seamless", label: "UK Met Office", note: "global 10 km", weight: 1.0, hours: 168 },
-    { id: "gfs_seamless", label: "GFS", note: "NOAA", weight: 0.8, hours: 240 }
+    { id: "ukmo_seamless", label: "UK Met Office", note: "global 10 km", weight: 1.0, hours: 168 }
   ];
   const SURFACE_VARS = ["cloud_cover", "cloud_cover_low", "cloud_cover_mid", "cloud_cover_high",
     "temperature_2m", "dew_point_2m", "wind_gusts_10m", "precipitation", "visibility"];
