@@ -335,7 +335,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       <div class="explain" style="margin-top:10px">
         <div><b>Kp-Index (0–9)</b><p>Misst, wie stark das Erdmagnetfeld gestört ist, in 3-Stunden-Schritten. Je höher, desto weiter nach Süden reicht das Nordlicht. Ab Kp 5 spricht man von einem geomagnetischen Sturm.</p></div>
         <div><b>Hp30 und Hp60 (GFZ)</b><p>Dasselbe wie Kp, aber für jede halbe bzw. ganze Stunde. Sie zeigen kurze Ausbrüche, die im 3-Stunden-Kp untergehen, und können über 9 steigen.</p></div>
-        <div><b>Bz</b><p>Die Nord-Süd-Richtung des Magnetfelds im Sonnenwind. Zeigt es nach Süden (negativ), strömt Energie in das Erdmagnetfeld. Bleibt Bz 15–30 Minuten deutlich negativ, wird Nordlicht wahrscheinlich.</p></div>
+        <div><b>Bz (GSM)</b><p>Nord-Süd-Komponente des interplanetaren Magnetfelds in geozentrischen solar-magnetosphärischen Koordinaten. Bei südwärtigem Bz (negativ) koppelt das Feld an das Erdmagnetfeld (Rekonnexion an der Tagseite), und Energie gelangt in die Magnetosphäre; man spricht von geoeffektivem Bz. Maßgeblich sind Betrag und Dauer: Ein Bz unter etwa −5 nT über 15–30 Minuten lässt Substürme und damit Nordlicht wahrscheinlich werden. Bt ist der Betrag des gesamten Feldes und begrenzt, wie stark Bz werden kann.</p></div>
         <div><b>Geschwindigkeit und Dichte</b><p>Schneller und dichter Sonnenwind verstärkt die Wirkung. Ruhig sind etwa 350–400 km/s, über 500 km/s wird es interessant.</p></div>
         <div><b>Polarlicht-Oval</b><p>Ein Ring um den magnetischen Pol, in dem Nordlicht auftritt. Bei Aktivität dehnt er sich nach Süden aus. Liegt er nördlich von dir, siehst du Nordlicht tief am Nordhorizont.</p></div>
       </div>
@@ -900,6 +900,14 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       const src = M.parts.map(p => `${p.key} ${kpTxt(p.v)}`).join(", ");
       why.push(`Aktivität: Kp etwa ${kpTxt(M.kpShort)} (${src}), ${reach(M.kpShort, M.need).toLowerCase().replace(/^nordlicht/, "Nordlicht")}.`);
     } else why.push("Keine aktuellen Aktivitätsdaten.");
+    if (M.sw && M.sw.bz30 !== null) {
+      const bits = [`Bz ${fmtNum(M.sw.bz30, 1)} nT, ${N.bzClass(M.sw.bz30).label}`];
+      if (N.bzClass(M.sw.bz30).south && M.sw.southMin > 0) bits[0] += ` seit ${M.sw.southMin} min`;
+      if (M.sw.bt30 !== null) bits.push(`Bt ${fmtNum(M.sw.bt30, 1)} nT`);
+      const v = M.sw.v30 ?? M.sw.speed;
+      if (v !== null) bits.push(`${fmtNum(v)} km/s`);
+      why.push(`Sonnenwind (${M.sw.source || "L1"}): ${bits.join(", ")}.`);
+    }
     if (M.ov) why.push(`Das NOAA-Oval gibt für deinen Ort ${Math.round(M.ov.value)} %.`);
     const sky = M.skyNow.dark === 0 ? "Sonne noch zu hoch" : (M.skyNow.cloud === null ? "Bewölkung unbekannt" : `${Math.round(M.skyNow.cloud)} % Wolken`) + (M.skyNow.dark > 0 && M.skyNow.dark < 1 ? ", Dämmerung" : "");
     why.push(`Himmel: ${sky}${M.moonNow > 0 ? `, Mond ${Math.round(M.illNow * 100)} % am Himmel` : ""}.`);
@@ -1043,8 +1051,14 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     // Bz
     const bz = R.mag.filter(r => r.ms >= t0 && r.bz !== null).map(r => ({ ms: r.ms, v: r.bz }));
     const trB = N.trendOf(bz, 0.5);
-    const bzW = trB.dir === "fällt" ? "dreht nach Süden" : trB.dir === "steigt" ? "dreht nach Norden" : trB.dir;
-    tiles.push(trendTile("Bz, Mittel 30 min", M.sw ? fmtNum(M.sw.bz30, 1) : "–", "nT", M.sw ? N.bzWords(M.sw.bz30) : "keine Daten", trB.dir === "fällt" ? "steigt" : trB.dir === "steigt" ? "fällt" : trB.dir, trB.dir === "unbekannt" ? "" : bzW,
+    const trBz = { fällt: "Bz sinkt (südwärtiger)", steigt: "Bz steigt (nordwärtiger)", stabil: "Bz stabil", unbekannt: "" }[trB.dir];
+    const bzParts = [];
+    if (M.sw) {
+      bzParts.push(N.bzWords(M.sw.bz30));
+      if (N.bzClass(M.sw.bz30).south && M.sw.southMin > 0) bzParts.push(`südwärts seit ${M.sw.southMin} min`);
+      if (M.sw.bt30 !== null) bzParts.push(`Bt ${fmtNum(M.sw.bt30, 1)} nT`);
+    }
+    tiles.push(trendTile("Bz (GSM), Mittel 30 min", M.sw ? fmtNum(M.sw.bz30, 1) : "–", "nT", M.sw ? bzParts.join(" · ") : "keine Daten", trB.dir, trBz,
       spark(bz, { t0, t1: now, symmetric: 10, color: "var(--aurora)", label: "Bz der letzten 6 Stunden" })));
     // Geschwindigkeit
     const v = R.wind.filter(r => r.ms >= t0 && r.speed !== null).map(r => ({ ms: r.ms, v: r.speed }));
@@ -1054,7 +1068,8 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       spark(v, { t0, t1: now, color: "var(--accent)", label: "Geschwindigkeit der letzten 6 Stunden" })));
     $("trendTiles").replaceChildren(...tiles);
     const sw = M.sw;
-    $("swLead").textContent = sw ? `Bz und Sonnenwind misst ${sw.source || "der aktive Satellit"} rund 1,5 Millionen km vor der Erde.` + (sw.travelMin ? ` Bei ${fmtNum(sp)} km/s ist das, was er jetzt sieht, in etwa ${sw.travelMin} Minuten hier (gegen ${hhmm(now + sw.travelMin * 60000)} Uhr).` : "") + " Für Bz zeigt der Pfeil nach oben, wenn es nach Süden dreht, also günstiger wird." : "Keine Sonnenwind-Daten erhalten.";
+    const role = sw ? N.sourceRole(sw.source) : "";
+    $("swLead").textContent = sw ? `Bz und Sonnenwind misst ${sw.source || "der aktive Satellit"}${role ? ` (NOAA-${role})` : ""} am Lagrange-Punkt L1, rund 1,5 Millionen km vor der Erde.` + (sw.travelMin ? ` Bei ${fmtNum(sp)} km/s erreicht der dort gemessene Sonnenwind die Erde nach etwa ${sw.travelMin} Minuten (gegen ${hhmm(now + sw.travelMin * 60000)} Uhr).` : "") : "Keine Sonnenwind-Daten erhalten.";
   }
 
   function renderAuroraNights(M) {

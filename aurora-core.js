@@ -211,18 +211,44 @@
     return {
       source: (lastMag && lastMag.source) || (lastWind && lastWind.source) || null,
       dataAgeMin: Math.round((nowMs - ref) / 60000),
-      bz: lastMag ? lastMag.bz : null, bz30, bz10, bt: lastMag ? lastMag.bt : null,
+      bz: lastMag ? lastMag.bz : null, bz30, bz10, bt: lastMag ? lastMag.bt : null, bt30: avgSince(mag, "bt", ref - 30 * 60000),
+      southMin: southwardMinutes(mag.filter(x => x.ms >= ref - 6 * 3600000)),
       speed: lastWind ? lastWind.speed : null, v30, density: lastWind ? lastWind.density : null, n30,
       travelMin, kpSw, trend
     };
   }
+  // Einstufung von Bz (GSM) in nT
+  function bzClass(bz) {
+    if (bz === null || bz === undefined) return { label: "keine Daten", south: false };
+    if (bz > 2) return { label: "nordwärts", south: false };
+    if (bz >= -2) return { label: "neutral", south: false };
+    if (bz >= -5) return { label: "schwach südwärts", south: true };
+    if (bz >= -10) return { label: "moderat südwärts", south: true };
+    return { label: "stark südwärts", south: true };
+  }
   function bzWords(bz) {
-    if (bz === null) return "keine Daten";
-    if (bz <= -10) return "stark südlich, sehr günstig";
-    if (bz <= -5) return "südlich, günstig";
-    if (bz <= -2) return "leicht südlich";
-    if (bz < 2) return "neutral";
-    return "nördlich, ungünstig";
+    const c = bzClass(bz);
+    return c.south ? c.label + ", geoeffektiv" : c.label;
+  }
+  // Minuten, die Bz (gleitendes 5-min-Mittel) zuletzt ununterbrochen unter −2 nT lag
+  function southwardMinutes(mag) {
+    const p = mag.filter(x => x.bz !== null);
+    if (!p.length) return 0;
+    const end = p[p.length - 1].ms;
+    let start = null;
+    for (let i = p.length - 1; i >= 0; i--) {
+      const win = p.filter(x => x.ms > p[i].ms - 5 * 60000 && x.ms <= p[i].ms);
+      const m = win.reduce((a, x) => a + x.bz, 0) / win.length;
+      if (m < -2) start = p[i].ms; else break;
+    }
+    return start === null ? 0 : Math.round((end - start) / 60000);
+  }
+  // Rolle des Satelliten laut NOAA (seit 30.06.2026: SOLAR-1 Hauptquelle, ACE Reserve)
+  function sourceRole(name) {
+    const n = String(name || "").toUpperCase();
+    if (n.includes("SOLAR")) return "Hauptquelle";
+    if (n.includes("ACE")) return "Reserve";
+    return "";
   }
   function speedWords(v) {
     if (v === null) return "keine Daten";
@@ -311,7 +337,7 @@
     URLS, toMs, rows, magLat, kpNeeded, activityFromKp,
     parseKpForecast, parseKpNow, parseGfzCsv, parseGfzKp, parseGfzHp30, parseGfzHp60, parseHpo, isFresh, parse27,
     activityTimeline, trendOf, parseMag, parseWind, ovationAt,
-    solarWindSummary, bzWords, speedWords, darkFactor, skyFactor, kpAt, score
+    solarWindSummary, bzWords, bzClass, southwardMinutes, sourceRole, speedWords, darkFactor, skyFactor, kpAt, score
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.AuroraCore = api;
