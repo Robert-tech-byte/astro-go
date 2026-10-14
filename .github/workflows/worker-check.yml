@@ -16,6 +16,10 @@ jobs:
         run: |
           curl -sS -o /dev/null -w '%{http_code}\n' "$W/"
           test "$(curl -s -o /dev/null -w '%{http_code}' "$W/")" -lt 500
+      - name: liefert die Astro-Go-Seite statt Worker
+        if: always()
+        run: |
+          curl -sS "$W/" | grep -q "Astro-Go"
       - name: ist noch Hello World
         if: always()
         run: |
