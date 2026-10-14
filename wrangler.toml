@@ -1,0 +1,7 @@
+# Cloudflare baut dieses Repo vom Hauptordner aus. Diese Datei sorgt dafür,
+# dass dabei der GFZ-Zwischendienst (cloudflare/worker.js) veröffentlicht wird
+# und nicht die Webseite selbst.
+name = "astro-go"
+main = "cloudflare/worker.js"
+compatibility_date = "2025-09-01"
+workers_dev = true

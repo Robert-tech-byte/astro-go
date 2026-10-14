@@ -1,5 +1,5 @@
 # Einstellungen für den Cloudflare-Worker (wird von Cloudflare bzw. dem GitHub-Ablauf gelesen)
-name = "astro-go-gfz"
+name = "astro-go"
 main = "worker.js"
 compatibility_date = "2025-09-01"
 workers_dev = true
