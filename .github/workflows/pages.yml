@@ -1,0 +1,60 @@
+# Veröffentlicht die Seite und holt dabei stündlich frische GFZ-Daten.
+# Grund: Die GFZ-Server erlauben keinen Abruf direkt aus dem Browser (CORS),
+# deshalb legt dieser Ablauf die Daten als eigene Dateien neben die Seite.
+name: Seite mit GFZ-Daten veröffentlichen
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "7,37 * * * *"   # zweimal pro Stunde
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Seite und GFZ-Daten zusammenstellen
+        run: |
+          mkdir -p _site/data
+          cp index.html astro-core.js aurora-core.js README.md _site/
+          touch _site/.nojekyll
+          get() {
+            if curl -fsSL --retry 3 --retry-delay 5 --max-time 60 "$1" -o "$2.tmp"; then
+              mv "$2.tmp" "$2"; echo "ok   $2"
+            else
+              rm -f "$2.tmp"; echo "FEHLER $1"
+            fi
+          }
+          NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          START2D=$(date -u -d '2 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          START6H=$(date -u -d '6 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+          HPO=https://isdc-data.gfz.de/geomagnetism/HpoForecast/v0102/output/Hpo/json
+          get "$HPO/hpo_forecast_mean_bars_Kp.json"   _site/data/gfz_hpo_kp.json
+          get "$HPO/hpo_forecast_mean_bars_Hp30.json" _site/data/gfz_hpo_hp30.json
+          get "https://spaceweather.gfz.de/fileadmin/Kp-Forecast/CSV/kp_product_file_FORECAST_PAGER_SWIFT_LAST.csv" _site/data/gfz_swift.csv
+          get "https://kp.gfz.de/app/json/?start=${START2D}&end=${NOW}&index=Kp"   _site/data/gfz_kp.json
+          get "https://kp.gfz.de/app/json/?start=${START6H}&end=${NOW}&index=Hp30" _site/data/gfz_hp30.json
+          printf '{"fetched":"%s"}\n' "$NOW" > _site/data/meta.json
+          ls -la _site/data
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

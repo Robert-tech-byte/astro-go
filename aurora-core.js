@@ -18,7 +18,16 @@
     // älteres SWIFT/PAGER-Ensemble (nur Ersatz, wenn das Hpo-Modell fehlt)
     gfzForecast: "https://spaceweather.gfz.de/fileadmin/Kp-Forecast/CSV/kp_product_file_FORECAST_PAGER_SWIFT_LAST.csv",
     gfzKp: (startIso, endIso) => `https://kp.gfz.de/app/json/?start=${startIso}&end=${endIso}&index=Kp`,
-    gfzHp30: (startIso, endIso) => `https://kp.gfz.de/app/json/?start=${startIso}&end=${endIso}&index=Hp30`
+    gfzHp30: (startIso, endIso) => `https://kp.gfz.de/app/json/?start=${startIso}&end=${endIso}&index=Hp30`,
+    // Kopien neben der Seite (GitHub Actions holt sie halbstündlich, weil GFZ keinen Browser-Abruf erlaubt)
+    local: {
+      gfzHpoKp: "data/gfz_hpo_kp.json",
+      gfzHpoHp30: "data/gfz_hpo_hp30.json",
+      gfzForecast: "data/gfz_swift.csv",
+      gfzKp: "data/gfz_kp.json",
+      gfzHp30: "data/gfz_hp30.json",
+      meta: "data/meta.json"
+    }
   };
 
   const L1_KM = 1.5e6; // Abstand L1–Erde, grob

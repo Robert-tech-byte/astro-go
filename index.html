@@ -615,11 +615,17 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     const iso = ms => new Date(ms).toISOString().slice(0, 19) + "Z";
     const U = N.URLS;
     const from = iso(now - 2 * 86400000), to = iso(now);
-    const [kpF, kpN, o27, ov, mag, wind, hpoKp, hpoHp30, swift, gfzK, gfzH] = await Promise.all([
+    // GFZ: erst die Kopie neben der Seite, dann direkt beim GFZ (falls der Server das irgendwann erlaubt)
+    const bust = "?t=" + Math.floor(now / 300000);
+    const both = (localUrl, remoteUrl, fn) => fn(localUrl + bust).catch(() => fn(remoteUrl));
+    const L = U.local;
+    const [kpF, kpN, o27, ov, mag, wind, hpoKp, hpoHp30, swift, gfzK, gfzH, meta] = await Promise.all([
       settle(getJSON(U.kpForecast)), settle(getJSON(U.kpNow)), settle(getText(U.outlook27)),
       settle(getJSON(U.ovation)), settle(getJSON(U.mag)), settle(getJSON(U.wind)),
-      settle(getJSON(U.gfzHpoKp)), settle(getJSON(U.gfzHpoHp30)), settle(getText(U.gfzForecast)),
-      settle(getJSON(U.gfzKp(from, to))), settle(getJSON(U.gfzHp30(iso(now - 6 * 3600000), to)))
+      settle(both(L.gfzHpoKp, U.gfzHpoKp, getJSON)), settle(both(L.gfzHpoHp30, U.gfzHpoHp30, getJSON)),
+      settle(both(L.gfzForecast, U.gfzForecast, getText)),
+      settle(both(L.gfzKp, U.gfzKp(from, to), getJSON)), settle(both(L.gfzHp30, U.gfzHp30(iso(now - 6 * 3600000), to), getJSON)),
+      settle(getJSON(L.meta + bust))
     ]);
     const safe = (r, fn) => { if (!r.ok) return null; try { return fn(r.v); } catch (e) { return null; } };
     const R = {
@@ -643,6 +649,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     R.hp30Fresh = N.isFresh(R.hpoHp30, now, 1800000);
     const lastH = R.gfzH.length ? R.gfzH[R.gfzH.length - 1] : null;
     R.hp30Now = lastH && now - lastH.ms < 3 * 3600000 ? lastH : null;
+    R.gfzFetched = meta.ok && meta.v && meta.v.fetched ? N.toMs(meta.v.fetched) : null;
     const stale = (arr, fresh) => arr.length && !fresh ? "veraltet, nicht genutzt" : null;
     R.status = [
       { label: "NOAA Kp-Vorhersage", note: "3 Tage", ok: R.kpF.length > 0 },
@@ -1000,9 +1007,14 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
   }
 
   function renderAuroraSources() {
-    $("aSrc").replaceChildren(...aur.raw.status.map(s => el("span", { class: "model" + (s.ok ? "" : " off"), title: s.ok ? s.note : "Nicht erreichbar oder nicht genutzt" }, [
+    const items = aur.raw.status.map(s => el("span", { class: "model" + (s.ok ? "" : " off"), title: s.ok ? s.note : "Nicht erreichbar oder nicht genutzt" }, [
       s.label + " ", el("small", { text: s.ok ? s.note : (s.note.includes("veraltet") ? s.note : "nicht erreichbar") })
-    ])));
+    ]));
+    if (aur.raw.gfzFetched) {
+      const age = Math.round((Date.now() - aur.raw.gfzFetched) / 60000);
+      items.push(el("span", { class: "hint", style: "flex-basis:100%", text: `GFZ-Daten zuletzt abgeholt vor ${age} min (${hhmm(aur.raw.gfzFetched)} Uhr).` }));
+    }
+    $("aSrc").replaceChildren(...items);
   }
 
   /* ---------- Ansicht ---------- */
