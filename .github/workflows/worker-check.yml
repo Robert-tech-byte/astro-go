@@ -12,18 +12,26 @@ jobs:
       ORIGIN: https://robert-tech-byte.github.io
     steps:
       - name: status
-        run: curl -fsS -H "Origin: $ORIGIN" "$W/status" | tee /dev/stderr | grep -q '"ok":true'
+        run: |
+          curl -fsS -H "Origin: $ORIGIN" "$W/status" | tee /dev/stderr | grep -q '"ok":true'
       - name: hpo-kp
-        run: curl -fsS -D h.txt -H "Origin: $ORIGIN" "$W/hpo-kp" | grep -q MEDIAN && grep -qi "access-control-allow-origin: $ORIGIN" h.txt
+        run: |
+          curl -fsS -D h.txt -H "Origin: $ORIGIN" "$W/hpo-kp" | grep -q MEDIAN && grep -qi "access-control-allow-origin: $ORIGIN" h.txt
       - name: hpo-hp30
-        run: curl -fsS -H "Origin: $ORIGIN" "$W/hpo-hp30" | grep -q MEDIAN
+        run: |
+          curl -fsS -H "Origin: $ORIGIN" "$W/hpo-hp30" | grep -q MEDIAN
       - name: hpo-hp60
-        run: curl -fsS -H "Origin: $ORIGIN" "$W/hpo-hp60" | grep -q MEDIAN
+        run: |
+          curl -fsS -H "Origin: $ORIGIN" "$W/hpo-hp60" | grep -q MEDIAN
       - name: kp
-        run: curl -fsS -H "Origin: $ORIGIN" "$W/kp" | grep -q '"Kp"'
+        run: |
+          curl -fsS -H "Origin: $ORIGIN" "$W/kp" | grep -q '"Kp"'
       - name: hp30
-        run: curl -fsS -H "Origin: $ORIGIN" "$W/hp30" | grep -q '"Hp30"'
+        run: |
+          curl -fsS -H "Origin: $ORIGIN" "$W/hp30" | grep -q '"Hp30"'
       - name: swift
-        run: curl -fsS -H "Origin: $ORIGIN" "$W/swift" | head -1 | grep -q "Time (UTC)"
+        run: |
+          curl -fsS -H "Origin: $ORIGIN" "$W/swift" | head -1 | grep -q "Time (UTC)"
       - name: fremde Ziele gesperrt
-        run: test "$(curl -s -o /dev/null -w '%{http_code}' "$W/evil")" = "404"
+        run: |
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$W/evil")" = "404"
