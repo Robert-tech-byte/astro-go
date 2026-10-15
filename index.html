@@ -68,7 +68,7 @@
 .tile .v small { font: 500 .78rem var(--font-mono); color: var(--muted); }
 .tile .w { font-size: .82rem; }
 .spark { width: 100%; height: 34px; display: block; margin-top: 4px; }
-.tchart { width: 100%; height: 132px; display: block; margin-top: 6px; touch-action: pan-y; }
+.tchart { width: 100%; height: 260px; display: block; margin-top: 6px; touch-action: pan-y; }
 #trendTiles { grid-template-columns: 1fr; }
 .tread { font: .74rem var(--font-mono); color: var(--muted); min-height: 1.3em; font-variant-numeric: tabular-nums; }
 .gauge { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
@@ -202,6 +202,7 @@ h2 { font: 600 .75rem var(--font-mono); text-transform: uppercase; letter-spacin
 .models { display: flex; flex-wrap: wrap; gap: 6px; }
 .model { font: .78rem var(--font-mono); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; background: var(--surface); }
 .model.off { opacity: .5; text-decoration: line-through; }
+.model.cached { border-style: dashed; }
 .model small { color: var(--muted); }
 details.how { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
 details.how summary { cursor: pointer; font-weight: 600; }
@@ -555,9 +556,14 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
 
   function renderModels() {
     const box = $("models");
-    box.replaceChildren(...state.data.status.filter(s => s.ok || !s.model.regional).map(s => el("span", { class: "model" + (s.ok ? "" : " off"), title: s.ok ? s.model.note : "Für diesen Ort oder Zeitraum keine Daten" }, [
-      s.model.label + " ", el("small", { text: s.ok ? s.model.note : "keine Daten" })
-    ])));
+    // Regionalmodelle, die den Ort nicht abdecken, ausblenden; Ausfälle sichtbar lassen
+    const shown = state.data.status.filter(s => s.ok || !s.model.regional || s.src === "fehlt");
+    box.replaceChildren(...shown.map(s => {
+      const tag = s.src === "live" ? "live" : s.src === "zwischengespeichert" ? `zwischengespeichert, ${s.age} min alt` : s.src === "fehlt" ? "fehlt gerade" : "keine Daten";
+      return el("span", { class: "model" + (s.ok ? "" : " off") + (s.src === "zwischengespeichert" ? " cached" : ""), title: s.model.note }, [
+        s.model.label + " ", el("small", { text: s.ok ? `${s.model.note} · ${tag}` : tag })
+      ]);
+    }));
   }
 
   /* ---------- Daten laden ---------- */
@@ -567,26 +573,82 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     return r.json();
   }
 
+  /* ---------- Robustes Laden der Wettermodelle ---------- */
+  // Anfrage mit Zeitlimit; bei Netzfehler, Zeitüberschreitung, 429 oder 5xx bis zu zweimal wiederholen.
+  // Andere 4xx (z. B. unbekannte Modellkennung) werden nicht wiederholt.
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  async function getJSONRetry(url, tries = 3, timeoutMs = 15000) {
+    let lastErr;
+    for (let i = 0; i < tries; i++) {
+      const ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const timer = ctl ? setTimeout(() => ctl.abort(), timeoutMs) : null;
+      try {
+        const r = await fetch(url, ctl ? { signal: ctl.signal } : undefined);
+        if (timer) clearTimeout(timer);
+        if (r.ok) return await r.json();
+        const err = new Error("HTTP " + r.status); err.status = r.status;
+        if (r.status !== 429 && r.status < 500) throw Object.assign(err, { final: true });
+        lastErr = err;
+      } catch (e) {
+        if (timer) clearTimeout(timer);
+        if (e.final) throw e;
+        lastErr = e;
+      }
+      if (i < tries - 1) await sleep(800 * (i + 1) + Math.random() * 400);
+    }
+    throw lastErr;
+  }
+  // Zwischenspeicher je Ort und Modell: letzte erfolgreiche Antwort, höchstens 3 Stunden alt
+  const MODEL_CACHE_MS = 3 * 3600000;
+  const modelCache = new Map();
+  const cacheKey = (lat, lon, id) => `${lat.toFixed(2)},${lon.toFixed(2)}|${id}`;
+  function cacheGet(key) {
+    let c = modelCache.get(key);
+    if (!c) { try { const raw = localStorage.getItem("astro.mc." + key); if (raw) c = JSON.parse(raw); } catch (e) { c = null; } }
+    return c && Date.now() - c.at < MODEL_CACHE_MS ? c : null;
+  }
+  function cachePut(key, val) {
+    modelCache.set(key, val);
+    try { localStorage.setItem("astro.mc." + key, JSON.stringify(val)); } catch (e) { /* Speicher voll oder gesperrt */ }
+  }
+
+  let loadSeq = 0;
   async function load() {
+    const seq = ++loadSeq; // nur das Ergebnis des neuesten Aufrufs zählt
     const { lat, lon } = state.loc;
     const hero = $("hero");
     hero.classList.add("loading");
     $("heroHeadline").textContent = "Lade Vorhersagen …";
     const list = A.modelsFor(lat, lon);
-    $("heroWhy").textContent = `${list.length} Wettermodelle werden abgefragt.`;
+    let done = 0;
+    const progress = () => { if (seq === loadSeq) $("heroWhy").textContent = `Lade Wettermodelle … ${done} von ${list.length}`; };
+    progress();
     // je Modell eine eigene Anfrage: ein Modell ohne Daten für diesen Ort fällt so einfach weg
-    const reqs = list.map(m => getJSON(A.forecastUrl(lat, lon, m.id, A.SURFACE_VARS, 5))
+    const reqs = list.map(m => getJSONRetry(A.forecastUrl(lat, lon, m.id, A.SURFACE_VARS, 5))
       .then(j => ({ m, j, id: m.id }))
-      .catch(e => m.fallback ? getJSON(A.forecastUrl(lat, lon, m.fallback, A.SURFACE_VARS, 5)).then(j => ({ m, j, id: m.fallback })) : Promise.reject(e)));
-    const jetReq = getJSON(A.forecastUrl(lat, lon, "ecmwf_ifs025", A.JET_VARS, 5));
+      // Ersatzkennung nur, wenn Open-Meteo die Kennung ablehnt (4xx), nicht bei vorübergehenden Störungen
+      .catch(e => m.fallback && e.final ? getJSONRetry(A.forecastUrl(lat, lon, m.fallback, A.SURFACE_VARS, 5)).then(j => ({ m, j, id: m.fallback })) : Promise.reject(e))
+      .finally(() => { done++; progress(); }));
+    const jetReq = getJSONRetry(A.forecastUrl(lat, lon, "ecmwf_ifs025", A.JET_VARS, 5));
     const res = await Promise.allSettled(reqs);
+    if (seq !== loadSeq) return; // inzwischen neuer Ladevorgang gestartet
     const models = [], status = [];
     let offset = null, tz = null;
     res.forEach((r, i) => {
       const m = list[i];
-      const parsed = r.status === "fulfilled" ? A.parseModel(r.value.j, r.value.id) : null;
+      const key = cacheKey(lat, lon, m.id);
+      let parsed = null, src = "fehlt", age = null;
+      if (r.status === "fulfilled") {
+        parsed = A.parseModel(r.value.j, r.value.id);
+        if (parsed) { src = "live"; cachePut(key, { at: Date.now(), id: r.value.id, j: r.value.j }); }
+        else src = "keine Daten"; // Modell deckt den Ort nicht ab
+      }
+      if (!parsed && r.status === "rejected") {
+        const c = cacheGet(key);
+        if (c) { parsed = A.parseModel(c.j, c.id); if (parsed) { src = "zwischengespeichert"; age = Math.round((Date.now() - c.at) / 60000); } }
+      }
       if (parsed) { models.push({ model: m, data: parsed.map }); offset = offset ?? parsed.offset; tz = tz ?? parsed.tz; }
-      status.push({ model: m, ok: !!parsed });
+      status.push({ model: m, ok: !!parsed, src, age });
     });
     let jet = null;
     try {
@@ -598,6 +660,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
         if (v.length) jet.set(x * 1000, Math.max(...v));
       });
     } catch (e) { jet = null; }
+    if (seq !== loadSeq) return;
 
     if (!models.length) {
       hero.classList.remove("loading");
@@ -1024,7 +1087,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
   // opts: { t0, t1, lo, hi, ticks:[], unit, zones:[{from,to,fill,op}], lines:[{v,label,dash,color}],
   //         series:[{pts, color, width, dash, step}], fmt(v), label, readout:fn(ms)->text }
   function drawTrendChart(svg, W, o) {
-    const H = 132, mL = 34, mR = 6, mT = 14, mB = 18;
+    const H = 260, mL = 38, mR = 6, mT = 16, mB = 22;
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("height", H);
     svg.replaceChildren();
     const x = ms => mL + (ms - o.t0) / (o.t1 - o.t0) * (W - mL - mR);
@@ -1036,19 +1099,19 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       svg.appendChild(svgEl("rect", { x: mL, y: y2, width: pw, height: Math.max(0, y1 - y2) }, `fill:${z.fill};opacity:${z.op}`));
     });
     const zoneLabels = [];
-    (o.zones || []).forEach(z => { if (z.label && Math.abs(y(z.from) - y(z.to)) >= 10) zoneLabels.push(svgText(mL + 4, (y(z.from) + y(z.to)) / 2 + 3, z.label, "fill:var(--fg);opacity:.75;font:9px var(--font-mono);paint-order:stroke;stroke:var(--surface);stroke-width:3px;stroke-linejoin:round")); });
+    (o.zones || []).forEach(z => { if (z.label && Math.abs(y(z.from) - y(z.to)) >= 10) zoneLabels.push(svgText(mL + 4, (y(z.from) + y(z.to)) / 2 + 3, z.label, "fill:var(--fg);opacity:.75;font:10.5px var(--font-mono);paint-order:stroke;stroke:var(--surface);stroke-width:3px;stroke-linejoin:round")); });
     // Achse und Raster
     (o.ticks || []).forEach(t => {
       if (t < o.lo || t > o.hi) return;
       svg.appendChild(svgEl("line", { x1: mL, x2: W - mR, y1: y(t), y2: y(t) }, "stroke:var(--line);stroke-width:1;opacity:.6"));
-      svg.appendChild(svgText(mL - 4, y(t) + 3.5, o.fmt ? o.fmt(t) : String(t), "fill:var(--muted);font:9.5px var(--font-mono)", "end"));
+      svg.appendChild(svgText(mL - 4, y(t) + 3.5, o.fmt ? o.fmt(t) : String(t), "fill:var(--muted);font:11px var(--font-mono)", "end"));
     });
-    svg.appendChild(svgText(mL - 4, 9, o.unit, "fill:var(--muted);font:9px var(--font-mono)", "end"));
+    svg.appendChild(svgText(mL - 4, 10, o.unit, "fill:var(--muted);font:10.5px var(--font-mono)", "end"));
     // Grenzlinien mit Beschriftung rechts innen
     (o.lines || []).forEach(l => {
       if (l.v < o.lo || l.v > o.hi) return;
       svg.appendChild(svgEl("line", { x1: mL, x2: W - mR, y1: y(l.v), y2: y(l.v) }, `stroke:${l.color || "var(--muted)"};stroke-width:1;${l.dash ? "stroke-dasharray:4 3;" : ""}`));
-      if (l.label) svg.appendChild(svgText(mL + 4, y(l.v) - 3, l.label, `fill:${l.color || "var(--muted)"};font:9px var(--font-mono)`));
+      if (l.label) svg.appendChild(svgText(mL + 4, y(l.v) - 3, l.label, `fill:${l.color || "var(--muted)"};font:10.5px var(--font-mono)`));
     });
     // Datenreihen
     (o.series || []).forEach(sr => {
@@ -1069,16 +1132,16 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     const yA = H - mB;
     svg.appendChild(svgEl("line", { x1: mL, x2: W - mR, y1: yA, y2: yA }, "stroke:var(--line);stroke-width:1"));
     const firstH = Math.ceil(o.t0 / HOUR) * HOUR;
-    const every = pw < 220 ? 2 : 1;
+    const every = pw < 260 ? 2 : 1;
     for (let t = firstH, i = 0; t < o.t1 - 20 * 60000; t += HOUR, i++) {
       svg.appendChild(svgEl("line", { x1: x(t), x2: x(t), y1: yA, y2: yA + 3 }, "stroke:var(--muted)"));
-      if (i % every === 0 && x(t) < W - mR - 44) svg.appendChild(svgText(x(t), H - 4, hhmm(t), "fill:var(--muted);font:9px var(--font-mono)", "middle"));
+      if (i % every === 0 && x(t) < W - mR - 48) svg.appendChild(svgText(x(t), H - 4, hhmm(t), "fill:var(--muted);font:10.5px var(--font-mono)", "middle"));
     }
-    svg.appendChild(svgText(W - mR, H - 4, "jetzt", "fill:var(--fg);font:9px var(--font-mono)", "end"));
+    svg.appendChild(svgText(W - mR, H - 4, "jetzt", "fill:var(--fg);font:10.5px var(--font-mono)", "end"));
     // Antippen: Wert des nächsten Messpunkts
     const main = (o.series || [])[0];
     const hair = svgEl("line", { x1: 0, x2: 0, y1: mT, y2: yA }, "stroke:var(--accent);stroke-width:1;display:none");
-    const dot = svgEl("circle", { r: 3 }, "fill:var(--fg);display:none");
+    const dot = svgEl("circle", { r: 4 }, "fill:var(--fg);display:none");
     svg.appendChild(hair); svg.appendChild(dot);
     const pick = ev => {
       if (!main) return;
