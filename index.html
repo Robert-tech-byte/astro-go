@@ -68,6 +68,9 @@
 .tile .v small { font: 500 .78rem var(--font-mono); color: var(--muted); }
 .tile .w { font-size: .82rem; }
 .spark { width: 100%; height: 34px; display: block; margin-top: 4px; }
+.tchart { width: 100%; height: 132px; display: block; margin-top: 6px; touch-action: pan-y; }
+#trendTiles { grid-template-columns: 1fr; }
+.tread { font: .74rem var(--font-mono); color: var(--muted); min-height: 1.3em; font-variant-numeric: tabular-nums; }
 .gauge { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .gauge svg { width: 100%; height: 64px; display: block; }
 .chart-box { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
@@ -1017,40 +1020,126 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
   }
 
   /* ---------- Trend-Kacheln ---------- */
-  function spark(points, opts) {
-    const svg = svgEl("svg", { class: "spark", viewBox: "0 0 200 34", preserveAspectRatio: "none", role: "img", "aria-label": opts.label });
-    const p = points.filter(q => q.v !== null && q.v !== undefined);
-    if (p.length < 2) return svg;
-    const t0 = opts.t0, t1 = opts.t1;
-    let lo = opts.min ?? Math.min(...p.map(q => q.v)), hi = opts.max ?? Math.max(...p.map(q => q.v));
-    if (opts.symmetric) { const m = Math.max(opts.symmetric, ...p.map(q => Math.abs(q.v))); lo = -m; hi = m; }
-    if (hi - lo < 1e-6) { hi += 1; lo -= 1; }
-    const x = ms => (ms - t0) / (t1 - t0) * 200, y = v => 31 - (v - lo) / (hi - lo) * 28;
-    if (opts.symmetric) svg.appendChild(svgEl("line", { x1: 0, x2: 200, y1: y(0), y2: y(0), "vector-effect": "non-scaling-stroke" }, "stroke:var(--line);stroke-width:1"));
-    const d = p.map((q, i) => (i ? "L" : "M") + x(q.ms).toFixed(1) + " " + y(q.v).toFixed(1)).join("");
-    svg.appendChild(svgEl("path", { d, "vector-effect": "non-scaling-stroke" }, `fill:none;stroke:${opts.color};stroke-width:1.6;stroke-linejoin:round`));
-    return svg;
+  // Verlaufsgrafik mit Achsen, Zonen, Grenzlinien und Zeitachse.
+  // opts: { t0, t1, lo, hi, ticks:[], unit, zones:[{from,to,fill,op}], lines:[{v,label,dash,color}],
+  //         series:[{pts, color, width, dash, step}], fmt(v), label, readout:fn(ms)->text }
+  function drawTrendChart(svg, W, o) {
+    const H = 132, mL = 34, mR = 6, mT = 14, mB = 18;
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("height", H);
+    svg.replaceChildren();
+    const x = ms => mL + (ms - o.t0) / (o.t1 - o.t0) * (W - mL - mR);
+    const y = v => mT + (1 - (Math.max(o.lo, Math.min(o.hi, v)) - o.lo) / (o.hi - o.lo)) * (H - mT - mB);
+    const pw = W - mL - mR;
+    // Zonen
+    (o.zones || []).forEach(z => {
+      const y1 = y(Math.min(z.from, z.to)), y2 = y(Math.max(z.from, z.to));
+      svg.appendChild(svgEl("rect", { x: mL, y: y2, width: pw, height: Math.max(0, y1 - y2) }, `fill:${z.fill};opacity:${z.op}`));
+    });
+    const zoneLabels = [];
+    (o.zones || []).forEach(z => { if (z.label && Math.abs(y(z.from) - y(z.to)) >= 10) zoneLabels.push(svgText(mL + 4, (y(z.from) + y(z.to)) / 2 + 3, z.label, "fill:var(--fg);opacity:.75;font:9px var(--font-mono);paint-order:stroke;stroke:var(--surface);stroke-width:3px;stroke-linejoin:round")); });
+    // Achse und Raster
+    (o.ticks || []).forEach(t => {
+      if (t < o.lo || t > o.hi) return;
+      svg.appendChild(svgEl("line", { x1: mL, x2: W - mR, y1: y(t), y2: y(t) }, "stroke:var(--line);stroke-width:1;opacity:.6"));
+      svg.appendChild(svgText(mL - 4, y(t) + 3.5, o.fmt ? o.fmt(t) : String(t), "fill:var(--muted);font:9.5px var(--font-mono)", "end"));
+    });
+    svg.appendChild(svgText(mL - 4, 9, o.unit, "fill:var(--muted);font:9px var(--font-mono)", "end"));
+    // Grenzlinien mit Beschriftung rechts innen
+    (o.lines || []).forEach(l => {
+      if (l.v < o.lo || l.v > o.hi) return;
+      svg.appendChild(svgEl("line", { x1: mL, x2: W - mR, y1: y(l.v), y2: y(l.v) }, `stroke:${l.color || "var(--muted)"};stroke-width:1;${l.dash ? "stroke-dasharray:4 3;" : ""}`));
+      if (l.label) svg.appendChild(svgText(mL + 4, y(l.v) - 3, l.label, `fill:${l.color || "var(--muted)"};font:9px var(--font-mono)`));
+    });
+    // Datenreihen
+    (o.series || []).forEach(sr => {
+      const p = sr.pts.filter(q => q.v !== null && q.v !== undefined && q.ms >= o.t0 && q.ms <= o.t1);
+      if (p.length < 2) return;
+      let d = "";
+      p.forEach((q, i) => {
+        const X = x(q.ms).toFixed(1), Y = y(q.v).toFixed(1);
+        if (!i) d += `M${X} ${Y}`;
+        else if (sr.step) d += `H${X}V${Y}`;
+        else d += `L${X} ${Y}`;
+      });
+      if (sr.step) d += `H${x(Math.min(o.t1, p[p.length - 1].ms + (sr.stepMs || 0))).toFixed(1)}`;
+      svg.appendChild(svgEl("path", { d }, `fill:none;stroke:${sr.color};stroke-width:${sr.width || 1.6};stroke-linejoin:round;${sr.dash ? "stroke-dasharray:3 3;" : ""}`));
+    });
+    zoneLabels.forEach(t => svg.appendChild(t));
+    // Zeitachse: volle Stunden in Ortszeit
+    const yA = H - mB;
+    svg.appendChild(svgEl("line", { x1: mL, x2: W - mR, y1: yA, y2: yA }, "stroke:var(--line);stroke-width:1"));
+    const firstH = Math.ceil(o.t0 / HOUR) * HOUR;
+    const every = pw < 220 ? 2 : 1;
+    for (let t = firstH, i = 0; t < o.t1 - 20 * 60000; t += HOUR, i++) {
+      svg.appendChild(svgEl("line", { x1: x(t), x2: x(t), y1: yA, y2: yA + 3 }, "stroke:var(--muted)"));
+      if (i % every === 0 && x(t) < W - mR - 44) svg.appendChild(svgText(x(t), H - 4, hhmm(t), "fill:var(--muted);font:9px var(--font-mono)", "middle"));
+    }
+    svg.appendChild(svgText(W - mR, H - 4, "jetzt", "fill:var(--fg);font:9px var(--font-mono)", "end"));
+    // Antippen: Wert des nächsten Messpunkts
+    const main = (o.series || [])[0];
+    const hair = svgEl("line", { x1: 0, x2: 0, y1: mT, y2: yA }, "stroke:var(--accent);stroke-width:1;display:none");
+    const dot = svgEl("circle", { r: 3 }, "fill:var(--fg);display:none");
+    svg.appendChild(hair); svg.appendChild(dot);
+    const pick = ev => {
+      if (!main) return;
+      const r = svg.getBoundingClientRect();
+      const px = (ev.clientX - r.left) / r.width * W;
+      const ms = o.t0 + (px - mL) / pw * (o.t1 - o.t0);
+      let best = null;
+      for (const q of main.pts) if (q.v !== null && (!best || Math.abs(q.ms - ms) < Math.abs(best.ms - ms))) best = q;
+      if (!best) return;
+      hair.setAttribute("x1", x(best.ms)); hair.setAttribute("x2", x(best.ms)); hair.style.display = "";
+      dot.setAttribute("cx", x(best.ms)); dot.setAttribute("cy", y(best.v)); dot.style.display = "";
+      if (o.readoutEl) o.readoutEl.textContent = o.readout(best);
+    };
+    svg.onpointerdown = pick; svg.onpointermove = pick;
+    svg.onpointerleave = () => { hair.style.display = "none"; dot.style.display = "none"; };
   }
-  function trendTile(k, value, unit, words, tr, trWords, sp) {
-    return el("div", { class: "tile" }, [
+  function smooth(pts, winMs) {
+    // gleitendes Mittel, entschärft das Rauschen der 1-Minuten-Werte
+    const out = [];
+    let j = 0, sum = 0;
+    for (let i = 0; i < pts.length; i++) {
+      sum += pts[i].v;
+      while (pts[j].ms < pts[i].ms - winMs) { sum -= pts[j].v; j++; }
+      out.push({ ms: pts[i].ms, v: sum / (i - j + 1), raw: pts[i].v });
+    }
+    return out;
+  }
+  function trendTile(k, value, unit, words, tr, trWords, chart) {
+    const svg = svgEl("svg", { class: "tchart", role: "img", "aria-label": chart.label });
+    const ro = el("div", { class: "tread", text: "Tippe in die Grafik für einzelne Werte." });
+    const tile = el("div", { class: "tile" }, [
       el("span", { class: "k", text: k }),
       el("span", { class: "v" }, [value + " ", el("small", { text: unit }), el("span", { class: "arrow", title: tr, text: " " + ARROW[tr] })]),
       el("span", { class: "w", text: words + (trWords ? " · " + trWords : "") }),
-      sp
+      svg, ro
     ]);
+    tile._chart = { svg, opts: { ...chart, readoutEl: ro } };
+    return tile;
   }
+  const niceCeil = (v, step) => Math.ceil(v / step) * step;
   function renderTrends(M) {
     const R = aur.raw, now = M.now, t0 = now - 6 * HOUR;
     const tiles = [];
     // Hp30 gemessen
-    const h30 = R.hp30m.filter(r => r.ms >= t0).map(r => ({ ms: r.ms + HOUR / 4, v: Math.min(9, r.kp) }));
-    const trH = N.trendOf(h30, 0.25);
-    const lastH = h30.length ? h30[h30.length - 1].v : null;
-    tiles.push(trendTile("Hp30 gemessen (GFZ)", kpTxt(lastH), lastH !== null ? `um ${hhmm(h30[h30.length - 1].ms - HOUR / 4)}` : "", lastH === null ? "keine Daten" : reach(lastH, M.need), trH.dir, trH.dir === "unbekannt" ? "" : trH.dir,
-      spark(h30, { t0, t1: now, min: 0, max: Math.max(5, ...h30.map(q => q.v + 1)), color: "var(--fg)", label: "Hp30 der letzten 6 Stunden" })));
-    // Bz
-    const bz = R.mag.filter(r => r.ms >= t0 && r.bz !== null).map(r => ({ ms: r.ms, v: r.bz }));
-    const trB = N.trendOf(bz, 0.5);
+    const h30raw = R.hp30m.filter(r => r.ms >= t0 - HOUR / 2);
+    const h30 = h30raw.map(r => ({ ms: r.ms, v: r.kp }));
+    const trH = N.trendOf(h30.map(q => ({ ms: q.ms, v: Math.min(9, q.v) })), 0.25);
+    const lastH = h30.length ? h30[h30.length - 1] : null;
+    const hpHi = Math.max(5, niceCeil(Math.max(M.need.overhead + 1, ...h30.map(q => q.v + 0.5)), 1));
+    tiles.push(trendTile("Hp30 gemessen (GFZ)", kpTxt(lastH ? lastH.v : null), lastH ? `${hhmm(lastH.ms)}–${hhmm(lastH.ms + HOUR / 2)}` : "", lastH ? reach(lastH.v, M.need) : "keine Daten", trH.dir, trH.dir === "unbekannt" ? "" : trH.dir, {
+      label: "Hp30 der letzten 6 Stunden mit den Schwellen für diesen Ort",
+      t0, t1: now, lo: 0, hi: hpHi, unit: "Hp30", ticks: [0, 2, 4, 6, 8, 10, 12].filter(t => t <= hpHi),
+      zones: [{ from: M.need.horizon, to: M.need.overhead, fill: "var(--aurora)", op: 0.08, label: "am Horizont" }, { from: M.need.overhead, to: hpHi, fill: "var(--aurora)", op: 0.16, label: "über dir" }],
+      lines: [{ v: M.need.horizon, dash: true, color: "var(--aurora)" }, { v: M.need.overhead, dash: true, color: "var(--aurora)" }],
+      series: [{ pts: h30, color: "var(--fg)", width: 2, step: true, stepMs: HOUR / 2 }],
+      readout: q => `${hhmm(q.ms)}–${hhmm(q.ms + HOUR / 2)} · Hp30 ${kpTxt(q.v)} · ${reach(q.v, M.need)}`
+    }));
+    // Bz mit Bt-Hüllkurve
+    const bzPts = smooth(R.mag.filter(r => r.ms >= t0 && r.bz !== null).map(r => ({ ms: r.ms, v: r.bz })), 3 * 60000);
+    const btPts = smooth(R.mag.filter(r => r.ms >= t0 && r.bt !== null).map(r => ({ ms: r.ms, v: r.bt })), 5 * 60000);
+    const trB = N.trendOf(R.mag.filter(r => r.ms >= t0 && r.bz !== null).map(r => ({ ms: r.ms, v: r.bz })), 0.5);
     const trBz = { fällt: "Bz sinkt (südwärtiger)", steigt: "Bz steigt (nordwärtiger)", stabil: "Bz stabil", unbekannt: "" }[trB.dir];
     const bzParts = [];
     if (M.sw) {
@@ -1058,18 +1147,41 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       if (N.bzClass(M.sw.bz30).south && M.sw.southMin > 0) bzParts.push(`südwärts seit ${M.sw.southMin} min`);
       if (M.sw.bt30 !== null) bzParts.push(`Bt ${fmtNum(M.sw.bt30, 1)} nT`);
     }
-    tiles.push(trendTile("Bz (GSM), Mittel 30 min", M.sw ? fmtNum(M.sw.bz30, 1) : "–", "nT", M.sw ? bzParts.join(" · ") : "keine Daten", trB.dir, trBz,
-      spark(bz, { t0, t1: now, symmetric: 10, color: "var(--aurora)", label: "Bz der letzten 6 Stunden" })));
+    const lim = niceCeil(Math.max(12, ...bzPts.map(q => Math.abs(q.v)), ...btPts.map(q => q.v)) + 1, 5);
+    const btAt = ms => { let b = null; for (const q of btPts) if (!b || Math.abs(q.ms - ms) < Math.abs(b.ms - ms)) b = q; return b ? b.v : null; };
+    tiles.push(trendTile("Bz (GSM), Mittel 30 min", M.sw ? fmtNum(M.sw.bz30, 1) : "–", "nT", M.sw ? bzParts.join(" · ") : "keine Daten", trB.dir, trBz, {
+      label: "Bz der letzten 6 Stunden mit Bt und den Grenzen für schwach, moderat und stark südwärts",
+      t0, t1: now, lo: -lim, hi: lim, unit: "nT", ticks: [-30, -20, -15, -10, -5, 0, 5, 10, 15, 20, 30].filter(t => Math.abs(t) <= lim && (lim <= 15 || t % 10 === 0)),
+      fmt: t => (t > 0 ? "+" : "") + t,
+      zones: [{ from: -2, to: -5, fill: "var(--aurora)", op: 0.07, label: "schwach südwärts" }, { from: -5, to: -10, fill: "var(--aurora)", op: 0.14, label: "moderat südwärts" }, { from: -10, to: -lim, fill: "var(--aurora)", op: 0.24, label: "stark südwärts" }],
+      lines: [{ v: 0, color: "var(--muted)" }, { v: -2, dash: true }, { v: -5, dash: true }, { v: -10, dash: true }],
+      series: [
+        { pts: bzPts, color: "var(--aurora)", width: 1.8 },
+        { pts: btPts, color: "var(--muted)", width: 1, dash: true },
+        { pts: btPts.map(q => ({ ms: q.ms, v: -q.v })), color: "var(--muted)", width: 1, dash: true }
+      ],
+      readout: q => `${hhmm(q.ms)} · Bz ${fmtNum(q.raw ?? q.v, 1)} nT (${N.bzClass(q.raw ?? q.v).label}) · Bt ${fmtNum(btAt(q.ms), 1)} nT`
+    }));
     // Geschwindigkeit
-    const v = R.wind.filter(r => r.ms >= t0 && r.speed !== null).map(r => ({ ms: r.ms, v: r.speed }));
-    const trV = N.trendOf(v, 15);
+    const vPts = smooth(R.wind.filter(r => r.ms >= t0 && r.speed !== null).map(r => ({ ms: r.ms, v: r.speed })), 5 * 60000);
+    const trV = N.trendOf(vPts, 15);
     const sp = M.sw ? (M.sw.v30 ?? M.sw.speed) : null;
-    tiles.push(trendTile("Sonnenwind", fmtNum(sp), "km/s", N.speedWords(sp), trV.dir, trV.dir === "unbekannt" ? "" : trV.dir,
-      spark(v, { t0, t1: now, color: "var(--accent)", label: "Geschwindigkeit der letzten 6 Stunden" })));
+    const vLo = Math.min(300, Math.floor(Math.min(...vPts.map(q => q.v), 400) / 100) * 100);
+    const vHi = Math.max(800, niceCeil(Math.max(...vPts.map(q => q.v), 0) + 50, 100));
+    tiles.push(trendTile("Sonnenwind", fmtNum(sp), "km/s", N.speedWords(sp), trV.dir, trV.dir === "unbekannt" ? "" : trV.dir, {
+      label: "Geschwindigkeit des Sonnenwinds der letzten 6 Stunden mit den Grenzen für erhöht, schnell und sehr schnell",
+      t0, t1: now, lo: vLo, hi: vHi, unit: "km/s", ticks: [300, 400, 500, 600, 700, 800, 900, 1000, 1200].filter(t => t >= vLo && t <= vHi),
+      zones: [{ from: 450, to: 550, fill: "var(--accent)", op: 0.07, label: "erhöht" }, { from: 550, to: 700, fill: "var(--accent)", op: 0.14, label: "schnell" }, { from: 700, to: vHi, fill: "var(--accent)", op: 0.22, label: "sehr schnell" }],
+      lines: [{ v: 450, dash: true }, { v: 550, dash: true }, { v: 700, dash: true }],
+      series: [{ pts: vPts, color: "var(--accent)", width: 1.8 }],
+      readout: q => `${hhmm(q.ms)} · ${fmtNum(q.raw ?? q.v)} km/s (${N.speedWords(q.raw ?? q.v)})`
+    }));
     $("trendTiles").replaceChildren(...tiles);
+    // erst nach dem Einfügen zeichnen, dann ist die echte Breite bekannt
+    tiles.forEach(t => { const c = t._chart; drawTrendChart(c.svg, Math.max(240, c.svg.getBoundingClientRect().width || 320), c.opts); });
     const sw = M.sw;
     const role = sw ? N.sourceRole(sw.source) : "";
-    $("swLead").textContent = sw ? `Bz und Sonnenwind misst ${sw.source || "der aktive Satellit"}${role ? ` (NOAA-${role})` : ""} am Lagrange-Punkt L1, rund 1,5 Millionen km vor der Erde.` + (sw.travelMin ? ` Bei ${fmtNum(sp)} km/s erreicht der dort gemessene Sonnenwind die Erde nach etwa ${sw.travelMin} Minuten (gegen ${hhmm(now + sw.travelMin * 60000)} Uhr).` : "") : "Keine Sonnenwind-Daten erhalten.";
+    $("swLead").textContent = sw ? `Bz und Sonnenwind misst ${sw.source || "der aktive Satellit"}${role ? ` (NOAA-${role})` : ""} am Lagrange-Punkt L1, rund 1,5 Millionen km vor der Erde.` + (sw.travelMin ? ` Bei ${fmtNum(sp)} km/s erreicht der dort gemessene Sonnenwind die Erde nach etwa ${sw.travelMin} Minuten (gegen ${hhmm(now + sw.travelMin * 60000)} Uhr).` : "") + " In der Bz-Grafik zeigt die gestrichelte Hüllkurve ±Bt." : "Keine Sonnenwind-Daten erhalten.";
   }
 
   function renderAuroraNights(M) {
