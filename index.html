@@ -291,7 +291,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       <li><b>Niederschlag, Nebel, Tau, Böen:</b> Abzüge bei Regen, Sichtweite unter 5 km, Taupunktabstand unter 2 °C und Böen über 20 km/h.</li>
       <li><b>Seeing:</b> nur grob über den Jetstream (ECMWF, 200–300 hPa), höchstens 10 % Abzug. Bei 2,3″ pro Pixel begrenzt das Seeing die Seestar selten.</li>
     </ul>
-    <p>Die <b>Nachtnote</b> ist der Mittelwert der besten drei aufeinanderfolgenden Stunden. Das <b>beste Fenster</b> umfasst zusammenhängende Stunden mit Note 6 oder besser. Die <b>Sicherheit</b> sinkt, wenn die Modelle bei der Bewölkung um mehr als 20 bzw. 45 Prozentpunkte auseinanderliegen.</p>
+    <p>Die <b>Nachtnote</b> ist der Mittelwert der besten drei aufeinanderfolgenden Stunden. Das <b>beste Fenster</b> umfasst zusammenhängende Stunden mit Note 6 oder besser. Für die <b>Sicherheit</b> wird für jedes gezählte Modell die Note berechnet, die sich mit seinen wirksamen Wolken ergäbe (alle anderen Faktoren gleich). Die Sicherheit ist <b>hoch</b>, wenn diese Noten höchstens 1 Punkt auseinanderliegen oder alle in derselben Stufe liegen (1–3 lohnt nicht, 4–6 vielleicht, 7–10 lohnt). Sie ist <b>niedrig</b>, wenn ein Modell „lohnt nicht“ und ein anderes „lohnt“ ergibt, sonst <b>mittel</b>. Melden alle Modelle viele Wolken, sind sie sich also einig, auch wenn die Prozentwerte streuen.</p>
     <p>Grenzen: Modelle sehen lokalen Nebel im Fjord und kleine Wolkenlücken schlecht. Vor dem Aufbau lohnt ein Blick auf das aktuelle Satellitenbild.</p>
   </details>
   </div>
@@ -539,10 +539,10 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     const rows = h.perModel.map(m => el("tr", m.excluded ? { style: "opacity:.45", title: "Ersetzt durch ein feineres Modell derselben Familie, zählt nicht mit" } : null, [
       el("td", { text: m.label + (m.excluded ? " (ersetzt)" : "") }),
       el("td", { text: fmtNum(m.low) }), el("td", { text: fmtNum(m.mid) }), el("td", { text: fmtNum(m.high) }),
-      el("td", { text: fmtNum(m.cloud) })
+      el("td", { text: fmtNum(m.cloud) }), el("td", { text: m.score ? String(m.score) : "–" })
     ]));
     const table = el("div", { class: "tbl-wrap" }, [el("table", { class: "mtable" }, [
-      el("thead", null, [el("tr", null, ["Modell", "tief", "mittel", "hoch", "wirksam"].map(t => el("th", { text: t })))]),
+      el("thead", null, [el("tr", null, ["Modell", "tief", "mittel", "hoch", "wirksam", "Note"].map(t => el("th", { text: t })))]),
       el("tbody", null, rows)
     ])]);
     const fl = h.f, names = { cloud: "Wolken", dark: "Dunkelheit", moon: "Mond", rain: "Regen", fog: "Nebel", dew: "Tau", wind: "Wind", seeing: "Seeing" };

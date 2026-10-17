@@ -216,9 +216,18 @@
     const q = Object.values(f).reduce((a, x) => a * x, 1);
     const score = Math.max(1, Math.min(10, Math.round(1 + 9 * q)));
 
+    // Note je Modell: gleiche Faktoren, nur die Wolken dieses Modells (für die Sicherheit)
+    const qOther = Object.entries(f).filter(([k]) => k !== "cloud").reduce((a, [, x]) => a * x, 1);
+    perModel.forEach(m => {
+      m.q = qOther * Math.pow(1 - m.cloud / 100, 1.5);
+      m.score = Math.max(1, Math.min(10, Math.round(1 + 9 * m.q)));
+    });
+    const counted = perModel.filter(m => !m.excluded);
+    const scoreMin = Math.min(...counted.map(m => m.score)), scoreMax = Math.max(...counted.map(m => m.score));
+
     return {
       ms, score, q, f, sun, moonAlt, illum, moonUp,
-      cloud: c.mean, cloudMin: c.min, cloudMax: c.max, spread: c.spread, nModels: c.n,
+      cloud: c.mean, cloudMin: c.min, cloudMax: c.max, spread: c.spread, nModels: c.n, scoreMin, scoreMax,
       low: layer("low"), mid: layer("mid"), high: layer("high"),
       gap, gust: g, precip: P ? P.mean : null, vis: V ? V.mean : null, jet: jetSpeed,
       perModel
@@ -309,20 +318,36 @@
     if (loss("dew") > 0.08) reasons.push({ w: loss("dew"), t: "Taugefahr (Taupunkt sehr nah)" });
     reasons.sort((a, b) => b.w - a.w);
 
-    // Modellübereinstimmung
-    const spread = avg(block, "spread"), n = Math.round(avg(block, "nModels"));
+    // Modellübereinstimmung: Note jedes Modells über den besten Block, Abstand der Noten
+    const byModel = new Map();
+    block.forEach(h => h.perModel.filter(m => !m.excluded).forEach(m => {
+      if (!byModel.has(m.id)) byModel.set(m.id, { label: m.label, qs: [] });
+      byModel.get(m.id).qs.push(m.q);
+    }));
+    const notes = [...byModel.values()].map(x => ({ label: x.label, score: Math.max(1, Math.min(10, Math.round(1 + 9 * x.qs.reduce((a, b) => a + b, 0) / x.qs.length))) }));
+    const n = notes.length;
+    notes.sort((a, b) => b.score - a.score);
+    const hi = notes[0], lo = notes[n - 1];
+    const nSpread = n ? hi.score - lo.score : 0;
+    const range = n ? (hi.score === lo.score ? `Note ${hi.score}` : `Noten ${lo.score}–${hi.score}`) : "";
+    // Entscheidungsstufen: 1–3 lohnt nicht, 4–6 vielleicht, 7–10 lohnt
+    const cat = sc => sc <= 3 ? 0 : sc <= 6 ? 1 : 2;
+    let level = "mittel";
+    if (n <= 1) level = "niedrig";
+    else if (nSpread <= 1 || cat(lo.score) === cat(hi.score)) level = "hoch";
+    else if (nSpread > 3 && cat(lo.score) === 0 && cat(hi.score) === 2) level = "niedrig";
     let agree;
     if (n <= 1) agree = "nur ein Modell verfügbar";
-    else if (spread < 20) agree = `${n} Modelle einig`;
-    else if (spread < 45) agree = `${n} Modelle weitgehend einig`;
-    else agree = `${n} Modelle uneinig (${Math.round(Math.min(...block.map(h => h.cloudMin)))}–${Math.round(Math.max(...block.map(h => h.cloudMax)))} % Bewölkung)`;
+    else if (level === "hoch") agree = `${n} Modelle einig: ${range}`;
+    else if (level === "mittel") agree = `${n} Modelle weitgehend einig: ${range}`;
+    else agree = `Modelle uneinig: ${hi.label} klarer (Note ${hi.score}) als ${lo.label} (Note ${lo.score})`;
 
     let text;
     if (!reasons.length) text = `Klarer, dunkler Himmel; ${agree}.`;
     else text = reasons.slice(0, 2).map(r => r.t).join("; ") + `; ${agree}.`;
     text = text.charAt(0).toUpperCase() + text.slice(1);
 
-    const confidence = n <= 1 ? "niedrig" : spread >= 45 ? "niedrig" : spread >= 20 ? "mittel" : "hoch";
+    const confidence = level;
     return { headline: parts[0], text, confidence, agreeText: agree };
   }
 
