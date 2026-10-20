@@ -231,7 +231,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
 
   <button class="loc" id="locBtn" aria-expanded="false">
     <span class="pin" aria-hidden="true"></span>
-    <span class="name" id="locName">Stranda</span>
+    <span class="name" id="locName">Tromsø</span>
     <span class="coords" id="locCoords">62,31° N · 6,94° O</span>
   </button>
   <div class="panel" id="locPanel" hidden>
@@ -383,7 +383,7 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
   };
 
   const state = {
-    loc: store.get("astro.loc", { name: "Stranda", admin: "Møre og Romsdal", lat: 62.3088, lon: 6.9426 }),
+    loc: store.get("astro.loc", { name: "Tromsø", admin: "Troms", lat: 69.6496, lon: 18.9560 }),
     target: store.get("astro.target", "nebula"),
     red: store.get("astro.red", false),
     data: null,       // { models:[{model,data}], status:[], jet, offset, tz }
