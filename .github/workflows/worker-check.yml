@@ -8,7 +8,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     env:
-      W: https://astro-go.robert-waetjen.workers.dev
+      W: https://astro-go.astrobert.workers.dev
       ORIGIN: https://robert-tech-byte.github.io
     steps:
       - name: erreichbar

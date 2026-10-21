@@ -22,7 +22,7 @@
     gfzHp60: (startIso, endIso) => `https://kp.gfz.de/app/json/?start=${startIso}&end=${endIso}&index=Hp60`,
     gfzHpoHp60: "https://isdc-data.gfz.de/geomagnetism/HpoForecast/v0102/output/Hpo/json/hpo_forecast_mean_bars_Hp60.json",
     // Cloudflare-Worker als Zwischendienst (cloudflare/worker.js). Leer = nicht eingerichtet.
-    worker: "https://astro-go.robert-waetjen.workers.dev",
+    worker: "https://astro-go.astrobert.workers.dev",
     workerPaths: { gfzHpoKp: "/hpo-kp", gfzHpoHp30: "/hpo-hp30", gfzHpoHp60: "/hpo-hp60", gfzForecast: "/swift", gfzKp: "/kp", gfzHp30: "/hp30" },
     // Kopien neben der Seite (GitHub Actions holt sie als Reserve, weil GFZ keinen Browser-Abruf erlaubt)
     local: {
