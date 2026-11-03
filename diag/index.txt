@@ -1,15 +1,22 @@
-kpForecast.json | 200 6909 application/json | https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json
-kpNow.json | 200 27925 application/json | https://services.swpc.noaa.gov/json/planetary_k_index_1m.json
-outlook27.txt | 200 1606 text/plain | https://services.swpc.noaa.gov/text/27-day-outlook.txt
-ovation.json | 200 919387 application/json | https://services.swpc.noaa.gov/json/ovation_aurora_latest.json
-mag.json | 200 1436970 application/json | https://services.swpc.noaa.gov/json/rtsw/rtsw_mag_1m.json
-wind.json | 200 2423269 application/json | https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json
-w_hpo_kp.json | 200 1549 application/json | https://astro-go.astrobert.workers.dev/hpo-kp
-w_hpo_hp30.json | 200 8889 application/json | https://astro-go.astrobert.workers.dev/hpo-hp30
-w_hpo_hp60.json | 200 4490 application/json | https://astro-go.astrobert.workers.dev/hpo-hp60
-w_kp.json | 200 629 application/json | https://astro-go.astrobert.workers.dev/kp
-w_hp30.json | 200 1430 application/json | https://astro-go.astrobert.workers.dev/hp30
-w_swift.csv | 522 16 text/plain; charset=UTF-8 | https://astro-go.astrobert.workers.dev/swift
-site_meta.json | 200 35 application/json; charset=utf-8 | https://robert-tech-byte.github.io/astro-go/data/meta.json
-site_index.html | 200 84825 text/html; charset=utf-8 | https://robert-tech-byte.github.io/astro-go/index.html
-site_aurora.js | 200 17551 application/javascript; charset=utf-8 | https://robert-tech-byte.github.io/astro-go/aurora-core.js
+kpForecast.json | 200 6909 0.094177s | https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json
+kpNow.json | 200 27925 0.016348s | https://services.swpc.noaa.gov/json/planetary_k_index_1m.json
+outlook27.txt | 200 1606 0.045673s | https://services.swpc.noaa.gov/text/27-day-outlook.txt
+ovation.json | 200 919472 0.020469s | https://services.swpc.noaa.gov/json/ovation_aurora_latest.json
+mag.json | 200 1437846 0.025577s | https://services.swpc.noaa.gov/json/rtsw/rtsw_mag_1m.json
+wind.json | 200 2424762 0.028276s | https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json
+w_hpo_kp.json | 200 1549 1.507334s | https://astro-go.astrobert.workers.dev/hpo-kp
+w_hpo_hp30.json | 200 8889 1.486937s | https://astro-go.astrobert.workers.dev/hpo-hp30
+w_hpo_hp60.json | 200 4490 1.066156s | https://astro-go.astrobert.workers.dev/hpo-hp60
+w_kp.json | 200 629 0.910000s | https://astro-go.astrobert.workers.dev/kp
+w_hp30.json | 200 1430 1.059340s | https://astro-go.astrobert.workers.dev/hp30
+w_swift.csv | 522 16 20.404144s | https://astro-go.astrobert.workers.dev/swift
+w_swift2.csv | 522 16 20.227598s | https://astro-go.astrobert.workers.dev/swift
+site_meta.json | 200 35 0.283019s | https://robert-tech-byte.github.io/astro-go/data/meta.json
+site_swift.csv | 404 9379 0.297933s | https://robert-tech-byte.github.io/astro-go/data/gfz_swift.csv
+site_hpo_kp.json | 200 1545 0.261633s | https://robert-tech-byte.github.io/astro-go/data/gfz_hpo_kp.json
+gfz_swift_direct.csv | curl: (28) Connection timed out after 60000 milliseconds
+000 0 60.000390s | https://spaceweather.gfz.de/fileadmin/Kp-Forecast/CSV/kp_product_file_FORECAST_PAGER_SWIFT_LAST.csv
+gfz_home.html | curl: (28) Connection timed out after 60002 milliseconds
+000 0 60.002730s | https://spaceweather.gfz.de/
+site_index.html | 200 84825 0.273599s | https://robert-tech-byte.github.io/astro-go/index.html
+site_aurora.js | 200 17551 0.102394s | https://robert-tech-byte.github.io/astro-go/aurora-core.js

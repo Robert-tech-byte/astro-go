@@ -5,20 +5,20 @@ last-modified: Tue, 03 Nov 2026 01:38:10 GMT
 access-control-allow-origin: *
 strict-transport-security: max-age=31556952
 etag: "6ae93b02-448f"
-expires: Tue, 03 Nov 2026 08:44:33 GMT
+expires: Tue, 03 Nov 2026 08:51:29 GMT
 cache-control: max-age=600
 x-proxy-cache: MISS
-x-github-request-id: 0D04:3AEFB4:1A173C:1C9281:6AE99C99
+x-github-request-id: FA84:92B0A:23E0DB:264573:6AE99E38
 x-github-edge-region: iad
 accept-ranges: bytes
 age: 0
-date: Tue, 03 Nov 2026 08:34:33 GMT
+date: Tue, 03 Nov 2026 08:41:29 GMT
 via: 1.1 varnish
-x-served-by: cache-iad-kcgs7200123-IAD
+x-served-by: cache-phx1710141-PHX
 x-cache: MISS
 x-cache-hits: 0
-x-timer: S1793694874.713615,VS0,VE31
+x-timer: S1793695289.140525,VS0,VE88
 vary: Accept-Encoding
-x-fastly-request-id: 48e852551df62275933dce7f010f336defed72b1
+x-fastly-request-id: 0a6a07328f94468d55cdd5e1576c102390a7d4a6
 content-length: 17551
 

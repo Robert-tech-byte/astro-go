@@ -1,20 +1,20 @@
 HTTP/2 200 
 content-type: application/json
-content-length: 919387
-date: Tue, 03 Nov 2026 08:34:08 GMT
+content-length: 919472
+date: Tue, 03 Nov 2026 08:37:53 GMT
+strict-transport-security: max-age=31536000
 server: Apache
-last-modified: Tue, 03 Nov 2026 08:33:32 GMT
-etag: "e075b-65f5b1e207ed8"
+last-modified: Tue, 03 Nov 2026 08:36:28 GMT
+etag: "e07b0-65f5b28a46cc8"
 accept-ranges: bytes
 cache-control: max-age=60
-expires: Tue, 03 Nov 2026 08:35:08 GMT
+expires: Tue, 03 Nov 2026 08:38:53 GMT
 access-control-allow-origin: *
 access-control-allow-headers: origin, x-requested-with, content-type
 access-control-allow-methods: PUT, GET, POST, DELETE, OPTIONS
-strict-transport-security: max-age=31536000
-vary: Accept-Encoding
-x-cache: Miss from cloudfront
-via: 1.1 281687fdef6568ba75a1a090e3b48e2a.cloudfront.net (CloudFront)
-x-amz-cf-pop: IAD61-P1
-x-amz-cf-id: JA2ETgZxigd9LWtVzZJQs0RUrKtXVx44ksjGjjWAMV5yn-OqYeBZJA==
+x-cache: Hit from cloudfront
+via: 1.1 c3e465da6b1e0bd6244982a9ae9e5542.cloudfront.net (CloudFront)
+x-amz-cf-pop: PHX52-P3
+x-amz-cf-id: R6xspeg39KZiUsOs5bDbC7860XCRhwBsycnpqq-eAccTFUzr06PvOw==
+age: 47
 
