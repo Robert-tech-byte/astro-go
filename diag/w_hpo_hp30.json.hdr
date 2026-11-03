@@ -1,0 +1,16 @@
+HTTP/2 200 
+date: Tue, 03 Nov 2026 08:34:10 GMT
+content-type: application/json
+content-length: 8889
+access-control-allow-origin: https://robert-tech-byte.github.io
+cache-control: public, max-age=300
+vary: Origin
+access-control-allow-methods: GET, OPTIONS
+access-control-expose-headers: X-Upstream-Date
+x-upstream-date: Tue, 03 Nov 2026 08:34:10 GMT
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=1KgsdUoO4uTcTwcY%2BGZW2CkKCMocznQyeXT1OVxuCy1J3L%2FtVKTMn%2BkkDiHOz9uxTtV1x%2BbkIKVErhRprDFf2OlyGlA6EGSYMpqiUGV%2B8VjjwuEorlvPEC0tWcrlBHBIpLDNOeTYsmG%2F%2FlZV3C0gz1E%3D"}]}
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+server: cloudflare
+cf-ray: a54a09ca8f135008-IAD
+alt-svc: h3=":443"; ma=86400
+

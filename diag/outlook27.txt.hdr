@@ -1,0 +1,21 @@
+HTTP/2 200 
+content-type: text/plain
+content-length: 1606
+date: Tue, 03 Nov 2026 08:34:00 GMT
+server: Apache
+last-modified: Tue, 03 Nov 2026 08:33:54 GMT
+etag: "646-65f5b1f789fd0"
+accept-ranges: bytes
+cache-control: max-age=60
+expires: Tue, 03 Nov 2026 08:35:00 GMT
+access-control-allow-origin: *
+access-control-allow-headers: origin, x-requested-with, content-type
+access-control-allow-methods: PUT, GET, POST, DELETE, OPTIONS
+strict-transport-security: max-age=31536000
+vary: Accept-Encoding
+x-cache: Hit from cloudfront
+via: 1.1 eb9a7c491927f70f3921f0803caae61c.cloudfront.net (CloudFront)
+x-amz-cf-pop: IAD61-P1
+x-amz-cf-id: Ef2ZhUt7cyLsszTe6tjMFEAP0buJT-l-JOWpK_EHQpIQcBUD75WTVQ==
+age: 8
+
