@@ -1,4 +1,4 @@
-name: Diagnose Datenquellen
+name: Diagnose Datenquellen (2)
 on: { push: { branches: [diag], paths: [".github/workflows/diag.yml"] } }
 permissions: { contents: write }
 jobs:
