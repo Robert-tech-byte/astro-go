@@ -11,6 +11,8 @@
 
 const ALLOWED_ORIGINS = ["https://robert-tech-byte.github.io"];
 const CACHE_SECONDS = 300;
+// Antwortet ein GFZ-Server nicht, nach 8 s abbrechen statt ~20 s auf Cloudflares Fehler 522 zu warten.
+const UPSTREAM_TIMEOUT_MS = 8000;
 
 const HPO = "https://isdc-data.gfz.de/geomagnetism/HpoForecast/v0102/output/Hpo/json/";
 const iso = ms => new Date(ms).toISOString().slice(0, 19) + "Z";
@@ -58,11 +60,12 @@ export default {
     let up;
     try {
       up = await fetch(t, {
+        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
         cf: { cacheTtl: CACHE_SECONDS, cacheEverything: true },
         headers: { "User-Agent": "astro-go (github.com/Robert-tech-byte/astro-go)" }
       });
     } catch (e) {
-      return new Response("GFZ nicht erreichbar", { status: 502, headers: cors });
+      return new Response("GFZ nicht erreichbar", { status: e && e.name === "TimeoutError" ? 504 : 502, headers: cors });
     }
     const h = new Headers(cors);
     h.set("Content-Type", up.headers.get("Content-Type") || (t.endsWith(".csv") ? "text/csv" : "application/json"));

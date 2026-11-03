@@ -34,7 +34,7 @@ jobs:
           cp index.html astro-core.js aurora-core.js README.md _site/
           touch _site/.nojekyll
           get() {
-            if curl -fsSL --retry 3 --retry-delay 5 --max-time 60 "$1" -o "$2.tmp"; then
+            if curl -fsSL --connect-timeout 10 --retry 2 --retry-delay 5 --max-time 45 "$1" -o "$2.tmp"; then
               mv "$2.tmp" "$2"; echo "ok   $2"
             else
               rm -f "$2.tmp"; echo "FEHLER $1"
