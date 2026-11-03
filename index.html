@@ -737,11 +737,11 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       // Direkt beim GFZ geht aus dem Browser nicht (keine CORS-Freigabe), deshalb kein dritter Versuch mehr.
       return tries.reduce((p, [name, url]) => p.catch(() => fn(url).then(v => { via[key] = name; return v; })), Promise.reject(new Error("start")));
     };
-    const [kpF, kpN, o27, ov, mag, wind, hpoKp, hpoHp30, hpoHp60, swift, gfzK, gfzH30, meta] = await Promise.all([
+    const [kpF, kpN, o27, ov, mag, wind, hpoKp, hpoHp30, hpoHp60, gfzK, gfzH30, meta] = await Promise.all([
       settle(getJSON(U.kpForecast)), settle(getJSON(U.kpNow)), settle(getText(U.outlook27)),
       settle(getJSON(U.ovation)), settle(getJSON(U.mag)), settle(getJSON(U.wind)),
       settle(chain("gfzHpoKp", U.gfzHpoKp, getJSON)), settle(chain("gfzHpoHp30", U.gfzHpoHp30, getJSON)),
-      settle(chain("gfzHpoHp60", U.gfzHpoHp60, getJSON)), settle(chain("gfzForecast", U.gfzForecast, getText)),
+      settle(chain("gfzHpoHp60", U.gfzHpoHp60, getJSON)),
       settle(chain("gfzKp", U.gfzKp(from2d, to), getJSON)), settle(chain("gfzHp30", U.gfzHp30(from24, to), getJSON)),
       settle(getJSON(L.meta + bust))
     ]);
@@ -757,7 +757,6 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       hpoKp: safe(hpoKp, N.parseHpo) || [],
       hpoHp30: safe(hpoHp30, N.parseHpo) || [],
       hpoHp60: safe(hpoHp60, N.parseHpo) || [],
-      swift: safe(swift, N.parseGfzCsv) || [],
       gfzK: safe(gfzK, N.parseGfzKp) || [],
       hp30m: safe(gfzH30, N.parseGfzHp30) || [],
       hp60m: safe(gfzH60, N.parseGfzHp60) || []
@@ -767,15 +766,14 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
     const fresh = {
       kp: N.isFresh(R.hpoKp, now, 3 * HOUR),
       hp30: N.isFresh(R.hpoHp30, now, HOUR / 2),
-      hp60: N.isFresh(R.hpoHp60, now, HOUR),
-      swift: N.isFresh(R.swift, now, 3 * HOUR)
+      hp60: N.isFresh(R.hpoHp60, now, HOUR)
     };
     R.fresh = fresh;
-    // Für die Zeitreihe nur frische Vorhersagen verwenden; ohne Hpo-Kp springt das SWIFT-Ensemble ein
+    // Für die Zeitreihe nur frische GFZ-Vorhersagen verwenden; fehlen sie, trägt NOAA allein
     R.tl = {
       hp60m: R.hp60m, hp30m: R.hp30m, gfzK: R.gfzK, kpF: R.kpF,
       hp60f: fresh.hp60 ? R.hpoHp60 : [],
-      hpoKp: fresh.kp ? R.hpoKp : (fresh.swift ? R.swift : [])
+      hpoKp: fresh.kp ? R.hpoKp : []
     };
     const lastH = R.hp30m.length ? R.hp30m[R.hp30m.length - 1] : null;
     R.hp30Now = lastH && now - lastH.ms < 3 * HOUR ? lastH : null;
@@ -786,7 +784,6 @@ details.how code { font: .82rem var(--font-mono); background: var(--surface-2); 
       { label: "GFZ Kp-Vorhersage", note: stale(R.hpoKp, fresh.kp) || "Hpo-Modell, 3 h", ok: fresh.kp },
       { label: "GFZ Hp30 gemessen", note: "letzte 24 h", ok: R.hp30m.length > 0 },
       { label: "GFZ Kp gemessen", note: "letzte 2 Tage", ok: R.gfzK.length > 0 },
-      { label: "GFZ SWIFT-Ensemble", note: stale(R.swift, fresh.swift) || (fresh.kp ? "Reserve" : "genutzt"), ok: fresh.swift },
       { label: "NOAA Kp-Vorhersage", note: "3 Tage, Vergleich", ok: R.kpF.length > 0 },
       { label: "NOAA Kp jetzt", note: "Schätzung je Minute", ok: !!R.kpNow },
       { label: "NOAA OVATION", note: "Oval, 30–90 min", ok: !!R.ovJson },

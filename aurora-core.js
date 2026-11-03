@@ -15,21 +15,18 @@
     // Neues Hpo-Vorhersagemodell (stündlich aktualisiert, Kp und Hp30, Median und Maximum)
     gfzHpoKp: "https://isdc-data.gfz.de/geomagnetism/HpoForecast/v0102/output/Hpo/json/hpo_forecast_mean_bars_Kp.json",
     gfzHpoHp30: "https://isdc-data.gfz.de/geomagnetism/HpoForecast/v0102/output/Hpo/json/hpo_forecast_mean_bars_Hp30.json",
-    // älteres SWIFT/PAGER-Ensemble (nur Ersatz, wenn das Hpo-Modell fehlt)
-    gfzForecast: "https://spaceweather.gfz.de/fileadmin/Kp-Forecast/CSV/kp_product_file_FORECAST_PAGER_SWIFT_LAST.csv",
     gfzKp: (startIso, endIso) => `https://kp.gfz.de/app/json/?start=${startIso}&end=${endIso}&index=Kp`,
     gfzHp30: (startIso, endIso) => `https://kp.gfz.de/app/json/?start=${startIso}&end=${endIso}&index=Hp30`,
     gfzHp60: (startIso, endIso) => `https://kp.gfz.de/app/json/?start=${startIso}&end=${endIso}&index=Hp60`,
     gfzHpoHp60: "https://isdc-data.gfz.de/geomagnetism/HpoForecast/v0102/output/Hpo/json/hpo_forecast_mean_bars_Hp60.json",
     // Cloudflare-Worker als Zwischendienst (cloudflare/worker.js). Leer = nicht eingerichtet.
     worker: "https://astro-go.astrobert.workers.dev",
-    workerPaths: { gfzHpoKp: "/hpo-kp", gfzHpoHp30: "/hpo-hp30", gfzHpoHp60: "/hpo-hp60", gfzForecast: "/swift", gfzKp: "/kp", gfzHp30: "/hp30" },
+    workerPaths: { gfzHpoKp: "/hpo-kp", gfzHpoHp30: "/hpo-hp30", gfzHpoHp60: "/hpo-hp60", gfzKp: "/kp", gfzHp30: "/hp30" },
     // Kopien neben der Seite (GitHub Actions holt sie als Reserve, weil GFZ keinen Browser-Abruf erlaubt)
     local: {
       gfzHpoKp: "data/gfz_hpo_kp.json",
       gfzHpoHp30: "data/gfz_hpo_hp30.json",
       gfzHpoHp60: "data/gfz_hpo_hp60.json",
-      gfzForecast: "data/gfz_swift.csv",
       gfzKp: "data/gfz_kp.json",
       gfzHp30: "data/gfz_hp30.json",
       gfzHp60: "data/gfz_hp60.json",
@@ -97,27 +94,6 @@
   function parseKpNow(json) {
     const r = rows(json).map(x => ({ ms: toMs(x.time_tag), kp: num(x.estimated_kp ?? x.kp_index ?? x.kp) })).filter(x => isFinite(x.ms) && x.kp !== null);
     return r.length ? r[r.length - 1] : null;
-  }
-
-  // GFZ-CSV: "Time (UTC)" im Format dd-mm-yyyy HH:MM
-  function parseGfzCsv(text) {
-    const lines = String(text).trim().split(/\r?\n/);
-    if (lines.length < 2) return [];
-    const head = lines[0].split(",").map(s => s.trim());
-    const idx = n => head.indexOf(n);
-    const iT = idx("Time (UTC)"), iMed = idx("median"), iMin = idx("minimum"), iMax = idx("maximum"),
-      iQ1 = idx("0.25-quantile"), iQ3 = idx("0.75-quantile");
-    const probCols = head.map((h, i) => [h, i]).filter(([h]) => h.startsWith("prob"));
-    return lines.slice(1).map(l => {
-      const c = l.split(",");
-      const m = /^(\d\d)-(\d\d)-(\d{4}) (\d\d):(\d\d)/.exec((c[iT] || "").trim());
-      if (!m) return null;
-      const ms = Date.UTC(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]);
-      const p = {};
-      probCols.forEach(([h, i]) => { p[h] = num(c[i]); });
-      const pStorm = ["prob 5-6", "prob 6-7", "prob 7-8", "prob >= 8"].reduce((a, k) => a + (p[k] || 0), 0);
-      return { ms, median: num(c[iMed]), min: num(c[iMin]), max: num(c[iMax]), q1: num(c[iQ1]), q3: num(c[iQ3]), pActive: (p["prob 4-5"] || 0) + pStorm, pStorm };
-    }).filter(Boolean);
   }
 
   // kp.gfz.de-Webservice: {datetime:[…], Kp|Hp30:[…], status:[…]}
@@ -335,7 +311,7 @@
 
   const api = {
     URLS, toMs, rows, magLat, kpNeeded, activityFromKp,
-    parseKpForecast, parseKpNow, parseGfzCsv, parseGfzKp, parseGfzHp30, parseGfzHp60, parseHpo, isFresh, parse27,
+    parseKpForecast, parseKpNow, parseGfzKp, parseGfzHp30, parseGfzHp60, parseHpo, isFresh, parse27,
     activityTimeline, trendOf, parseMag, parseWind, ovationAt,
     solarWindSummary, bzWords, bzClass, southwardMinutes, sourceRole, speedWords, darkFactor, skyFactor, kpAt, score
   };

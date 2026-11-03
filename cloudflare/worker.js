@@ -25,7 +25,6 @@ function target(path, now) {
     case "/hpo-kp": return HPO + "hpo_forecast_mean_bars_Kp.json";
     case "/hpo-hp30": return HPO + "hpo_forecast_mean_bars_Hp30.json";
     case "/hpo-hp60": return HPO + "hpo_forecast_mean_bars_Hp60.json";
-    case "/swift": return "https://spaceweather.gfz.de/fileadmin/Kp-Forecast/CSV/kp_product_file_FORECAST_PAGER_SWIFT_LAST.csv";
     case "/kp": return `https://kp.gfz.de/app/json/?start=${iso(end - 2 * 86400000)}&end=${iso(end)}&index=Kp`;
     case "/hp30": return `https://kp.gfz.de/app/json/?start=${iso(end - 86400000)}&end=${iso(end)}&index=Hp30`;
     default: return null;
@@ -50,7 +49,7 @@ export default {
 
     const url = new URL(request.url);
     if (url.pathname === "/" || url.pathname === "/status") {
-      return new Response(JSON.stringify({ ok: true, paths: ["/hpo-kp", "/hpo-hp30", "/hpo-hp60", "/swift", "/kp", "/hp30"] }), {
+      return new Response(JSON.stringify({ ok: true, paths: ["/hpo-kp", "/hpo-hp30", "/hpo-hp60", "/kp", "/hp30"] }), {
         headers: { ...cors, "Content-Type": "application/json" }
       });
     }

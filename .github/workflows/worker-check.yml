@@ -49,10 +49,10 @@ jobs:
         if: always()
         run: |
           curl -fsS -H "Origin: $ORIGIN" "$W/hp30" | grep -q '"Hp30"'
-      - name: swift
+      - name: swift abgeschaltet
         if: always()
         run: |
-          curl -fsS -H "Origin: $ORIGIN" "$W/swift" | head -1 | grep -q "Time (UTC)"
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$W/swift")" = "404"
       - name: fremde Ziele gesperrt
         if: always()
         run: |
