@@ -13,7 +13,7 @@ jobs:
           N=https://services.swpc.noaa.gov
           W=https://astro-go.astrobert.workers.dev
           O=https://robert-tech-byte.github.io
-          g() { code=$(curl -sS -L --max-time 60 -H "Origin: $O" -D "$1.hdr" -o "$1" -w '%{http_code} %{size_download} %{content_type}' "$2" 2>&1); echo "$1 | $code | $2" >> index.txt; }
+          g() { code=$(curl -sS -L --max-time 60 -H "Origin: $O" -D "$1.hdr" -o "$1" -w '%{http_code} %{size_download} %{time_total}s' "$2" 2>&1); echo "$1 | $code | $2" >> index.txt; }
           g kpForecast.json $N/products/noaa-planetary-k-index-forecast.json
           g kpNow.json $N/json/planetary_k_index_1m.json
           g outlook27.txt $N/text/27-day-outlook.txt
@@ -26,7 +26,12 @@ jobs:
           g w_kp.json $W/kp
           g w_hp30.json $W/hp30
           g w_swift.csv $W/swift
+          g w_swift2.csv $W/swift
           g site_meta.json $O/astro-go/data/meta.json
+          g site_swift.csv $O/astro-go/data/gfz_swift.csv
+          g site_hpo_kp.json $O/astro-go/data/gfz_hpo_kp.json
+          g gfz_swift_direct.csv https://spaceweather.gfz.de/fileadmin/Kp-Forecast/CSV/kp_product_file_FORECAST_PAGER_SWIFT_LAST.csv
+          g gfz_home.html https://spaceweather.gfz.de/
           g site_index.html $O/astro-go/index.html
           g site_aurora.js $O/astro-go/aurora-core.js
           head -c 20000 ovation.json > ovation_head.json; rm ovation.json
