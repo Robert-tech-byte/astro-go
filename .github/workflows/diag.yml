@@ -1,5 +1,5 @@
 name: Diagnose Datenquellen
-on: { workflow_dispatch: {} }
+on: { push: { branches: [diag], paths: [".github/workflows/diag.yml"] } }
 permissions: { contents: write }
 jobs:
   probe:
